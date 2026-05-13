@@ -1,0 +1,64 @@
+{
+  "name": "@planet9group/8dx-mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server that exposes 8DX DEX aggregator REST endpoints as AI agent tools.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Planet 9",
+  "homepage": "https://github.com/planet9group/8dx-mcp-server#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/planet9group/8dx-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/planet9group/8dx-mcp-server/issues"
+  },
+  "keywords": [
+    "8dx",
+    "mcp",
+    "model-context-protocol",
+    "dex",
+    "defi",
+    "ai-agents"
+  ],
+  "bin": {
+    "8dx-mcp-server": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "examples",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md",
+    "smithery.yaml"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx src/index.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "prepublishOnly": "npm run lint && npm run typecheck && npm test && npm run build",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.1",
+    "@types/node": "24.10.1",
+    "eslint": "9.39.1",
+    "prettier": "3.7.0",
+    "tsx": "4.21.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.46.4",
+    "vitest": "3.2.4"
+  }
+}

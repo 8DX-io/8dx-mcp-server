@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "8dx-local": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/absolute/path/to/8dx-mcp-server/dist/index.js"],
+      "env": {
+        "EIGHTDX_API_BASE_URL": "https://dev-london.8dx.io",
+        "EIGHTDX_REQUEST_TIMEOUT_MS": "30000"
+      }
+    }
+  }
+}

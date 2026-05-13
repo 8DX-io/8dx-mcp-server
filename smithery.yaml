@@ -1,0 +1,22 @@
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      eightdxApiBaseUrl:
+        type: string
+        description: 8DX REST API base URL.
+        default: https://dev-london.8dx.io
+      eightdxRequestTimeoutMs:
+        type: number
+        description: Request timeout in milliseconds.
+        default: 30000
+  commandFunction: |
+    (config) => ({
+      command: "npx",
+      args: ["-y", "@planet9group/8dx-mcp-server"],
+      env: {
+        EIGHTDX_API_BASE_URL: config.eightdxApiBaseUrl || "https://dev-london.8dx.io",
+        EIGHTDX_REQUEST_TIMEOUT_MS: String(config.eightdxRequestTimeoutMs || 30000)
+      }
+    })
