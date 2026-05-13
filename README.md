@@ -73,6 +73,49 @@ Add this to `claude_desktop_config.json`:
 claude mcp add 8dx --transport stdio -- npx -y @planet9group/8dx-mcp-server
 ```
 
+## OpenAI Codex
+
+Codex CLI can register this server as a stdio MCP server with `codex mcp add`.
+
+### Local development
+
+Use this while developing the server before it is published to npm.
+
+Build the server first:
+
+```bash
+cd /absolute/path/to/8dx-mcp-server
+npm install
+npm run build
+```
+
+Then add the local server to Codex:
+
+```bash
+codex mcp add 8dx-local \
+  --env EIGHTDX_API_BASE_URL=https://dev-london.8dx.io \
+  --env EIGHTDX_REQUEST_TIMEOUT_MS=30000 \
+  -- node /absolute/path/to/8dx-mcp-server/dist/index.js
+```
+
+Confirm that Codex can see the server:
+
+```bash
+codex mcp list
+codex mcp get 8dx-local
+```
+
+### Published package
+
+After the package is published to npm, use `npx` instead of the local `node` path:
+
+```bash
+codex mcp add 8dx \
+  --env EIGHTDX_API_BASE_URL=https://dev-london.8dx.io \
+  --env EIGHTDX_REQUEST_TIMEOUT_MS=30000 \
+  -- npx -y @planet9group/8dx-mcp-server
+```
+
 ## Cursor
 
 Cursor supports project-level and global MCP configuration:
