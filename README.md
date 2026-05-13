@@ -7,20 +7,32 @@ does not sign messages, does not custody funds, and does not send on-chain trans
 
 ## Tools
 
-| Tool                                | REST route                                             | Notes                                                                 |
-| ----------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------- |
-| `eightdx_health`                    | `GET /api/health`                                      | Checks API health.                                                    |
-| `eightdx_get_quote`                 | `GET /api/{blockchain}/quote`                          | Read-only quote lookup.                                               |
-| `eightdx_create_swap`               | `POST /api/{blockchain}/swap`                          | Returns swap calldata from a quoted path. Does not sign or broadcast. |
-| `eightdx_get_permit_address`        | `GET /api/{blockchain}/permit/address`                 | Reads permit contract address.                                        |
-| `eightdx_get_permit_data`           | `GET /api/{blockchain}/permit/data`                    | Returns permit data to sign. Does not sign.                           |
-| `eightdx_create_limit_order`        | `POST /api/{blockchain}/order`                         | Submits an already signed order payload.                              |
-| `eightdx_get_limit_orders_by_maker` | `GET /api/{blockchain}/orders/byMaker/{maker}`         | Reads active orders.                                                  |
-| `eightdx_get_limit_order_history`   | `GET /api/{blockchain}/orders/byMaker/history/{maker}` | Reads order history.                                                  |
-| `eightdx_get_limit_order_by_hash`   | `GET /api/{blockchain}/orders/{order_hash}`            | Reads one order.                                                      |
-| `eightdx_cancel_limit_order`        | `POST /api/{blockchain}/orders/cancel`                 | Submits an already signed cancel payload.                             |
-
 Supported `blockchain` values: `ethereum`, `bsc`, `arbitrum`.
+
+### Quotes and swaps
+
+| Tool                                                              | Description                                                                                                                |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `eightdx_health`<br><sub>`GET /api/health`</sub>                  | Checks whether the 8DX API is reachable and responding normally.                                                           |
+| `eightdx_get_quote`<br><sub>`GET /api/{blockchain}/quote`</sub>   | Performs a read-only quote lookup for an exact token pair and amount.                                                      |
+| `eightdx_create_swap`<br><sub>`POST /api/{blockchain}/swap`</sub> | Returns swap calldata for a previously quoted path. The server does not sign, custody funds, or broadcast the transaction. |
+
+### Permit helpers
+
+| Tool                                                                              | Description                                                                                            |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `eightdx_get_permit_address`<br><sub>`GET /api/{blockchain}/permit/address`</sub> | Reads the permit contract address used by the selected blockchain.                                     |
+| `eightdx_get_permit_data`<br><sub>`GET /api/{blockchain}/permit/data`</sub>       | Returns permit data that a wallet or agent can inspect and sign externally. The server never signs it. |
+
+### Limit orders
+
+| Tool                                                                                                   | Description                                                                   |
+| ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| `eightdx_create_limit_order`<br><sub>`POST /api/{blockchain}/order`</sub>                              | Submits an order payload that has already been signed outside the MCP server. |
+| `eightdx_get_limit_orders_by_maker`<br><sub>`GET /api/{blockchain}/orders/byMaker/{maker}`</sub>       | Reads active limit orders for a maker address.                                |
+| `eightdx_get_limit_order_history`<br><sub>`GET /api/{blockchain}/orders/byMaker/history/{maker}`</sub> | Reads historical limit orders for a maker address.                            |
+| `eightdx_get_limit_order_by_hash`<br><sub>`GET /api/{blockchain}/orders/{order_hash}`</sub>            | Reads a single limit order by its order hash.                                 |
+| `eightdx_cancel_limit_order`<br><sub>`POST /api/{blockchain}/orders/cancel`</sub>                      | Submits a cancel payload that has already been signed outside the MCP server. |
 
 ## Install
 
