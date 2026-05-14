@@ -13,8 +13,12 @@ type ToolDefinition = {
 };
 
 const blockchainSchema = z
-  .enum(["ethereum", "bsc", "arbitrum"])
-  .describe("Blockchain network supported by the 8DX API.");
+  .enum(["ethereum"])
+  .describe("Blockchain network with live 8DX route support.");
+
+const permitBlockchainSchema = z
+  .enum(["ethereum", "bsc"])
+  .describe("Blockchain network with live 8DX permit helper support.");
 
 const addressSchema = (description: string) =>
   z
@@ -121,9 +125,9 @@ export function createEightDxToolDefinitions(client: EightDxClient): ToolDefinit
     {
       description: "Gets the permit contract address for a supported 8DX blockchain.",
       handler: async (input) =>
-        toJsonToolResult(await client.getPermitAddress(parseBlockchainInput(input))),
+        toJsonToolResult(await client.getPermitAddress(parsePermitBlockchainInput(input))),
       inputSchema: {
-        blockchain: blockchainSchema
+        blockchain: permitBlockchainSchema
       },
       name: "eightdx_get_permit_address",
       title: "Get 8DX Permit Address"
@@ -134,7 +138,7 @@ export function createEightDxToolDefinitions(client: EightDxClient): ToolDefinit
       handler: async (input) =>
         toJsonToolResult(await client.getPermitData(parsePermitDataInput(input))),
       inputSchema: {
-        blockchain: blockchainSchema,
+        blockchain: permitBlockchainSchema,
         addressTokenIn: addressSchema("Token address or native-token identifier to approve."),
         dstAddress: addressSchema("Destination spender or wallet address used by the permit flow."),
         amountIn: amountSchema("Amount to include in permit data.")
@@ -184,17 +188,6 @@ export function createEightDxToolDefinitions(client: EightDxClient): ToolDefinit
       },
       name: "eightdx_get_limit_order_history",
       title: "Get 8DX Limit Order History"
-    },
-    {
-      description: "Gets an 8DX limit order by order hash.",
-      handler: async (input) =>
-        toJsonToolResult(await client.getLimitOrderByHash(parseOrderByHashInput(input))),
-      inputSchema: {
-        blockchain: blockchainSchema,
-        orderHash: z.string().min(1).describe("8DX order hash.")
-      },
-      name: "eightdx_get_limit_order_by_hash",
-      title: "Get 8DX Limit Order By Hash"
     },
     {
       description:
@@ -266,14 +259,14 @@ function parseSwapInput(input: Record<string, unknown>) {
     .parse(input);
 }
 
-function parseBlockchainInput(input: Record<string, unknown>) {
-  return z.object({ blockchain: blockchainSchema }).parse(input);
+function parsePermitBlockchainInput(input: Record<string, unknown>) {
+  return z.object({ blockchain: permitBlockchainSchema }).parse(input);
 }
 
 function parsePermitDataInput(input: Record<string, unknown>) {
   return z
     .object({
-      blockchain: blockchainSchema,
+      blockchain: permitBlockchainSchema,
       addressTokenIn: z.string().min(1),
       dstAddress: z.string().min(1),
       amountIn: z.string().min(1)
@@ -313,15 +306,6 @@ function parseOrderHistoryInput(input: Record<string, unknown>) {
       maker: z.string().min(1),
       offset: z.number().int().nonnegative().optional(),
       sort: z.enum(["asc", "desc"]).optional()
-    })
-    .parse(input);
-}
-
-function parseOrderByHashInput(input: Record<string, unknown>) {
-  return z
-    .object({
-      blockchain: blockchainSchema,
-      orderHash: z.string().min(1)
     })
     .parse(input);
 }

@@ -7,7 +7,8 @@ does not sign messages, does not custody funds, and does not send on-chain trans
 
 ## Tools
 
-Supported `blockchain` values: `ethereum`, `bsc`, `arbitrum`.
+Supported `blockchain` value for quote, swap, and limit-order tools: `ethereum`.
+Permit helper tools currently support `ethereum` and `bsc`.
 
 ### Quotes and swaps
 
@@ -31,19 +32,18 @@ Supported `blockchain` values: `ethereum`, `bsc`, `arbitrum`.
 | `eightdx_create_limit_order`<br><sub>`POST /api/{blockchain}/order`</sub>                              | Submits an order payload that has already been signed outside the MCP server. |
 | `eightdx_get_limit_orders_by_maker`<br><sub>`GET /api/{blockchain}/orders/byMaker/{maker}`</sub>       | Reads active limit orders for a maker address.                                |
 | `eightdx_get_limit_order_history`<br><sub>`GET /api/{blockchain}/orders/byMaker/history/{maker}`</sub> | Reads historical limit orders for a maker address.                            |
-| `eightdx_get_limit_order_by_hash`<br><sub>`GET /api/{blockchain}/orders/{order_hash}`</sub>            | Reads a single limit order by its order hash.                                 |
 | `eightdx_cancel_limit_order`<br><sub>`POST /api/{blockchain}/orders/cancel`</sub>                      | Submits a cancel payload that has already been signed outside the MCP server. |
 
 ## Install
 
 ```bash
-npm install -g @planet9group/8dx-mcp-server
+npm install -g @8dx-io/8dx-mcp-server
 ```
 
 Or run it directly:
 
 ```bash
-npx -y @planet9group/8dx-mcp-server
+npx -y @8dx-io/8dx-mcp-server
 ```
 
 ## Configuration
@@ -70,7 +70,7 @@ Add this to `claude_desktop_config.json`:
   "mcpServers": {
     "8dx": {
       "command": "npx",
-      "args": ["-y", "@planet9group/8dx-mcp-server"],
+      "args": ["-y", "@8dx-io/8dx-mcp-server"],
       "env": {
         "EIGHTDX_API_BASE_URL": "https://dev-london.8dx.io"
       }
@@ -82,7 +82,7 @@ Add this to `claude_desktop_config.json`:
 ## Claude Code
 
 ```bash
-claude mcp add 8dx --transport stdio -- npx -y @planet9group/8dx-mcp-server
+claude mcp add 8dx --transport stdio -- npx -y @8dx-io/8dx-mcp-server
 ```
 
 ## OpenAI Codex
@@ -125,7 +125,7 @@ After the package is published to npm, use `npx` instead of the local `node` pat
 codex mcp add 8dx \
   --env EIGHTDX_API_BASE_URL=https://dev-london.8dx.io \
   --env EIGHTDX_REQUEST_TIMEOUT_MS=30000 \
-  -- npx -y @planet9group/8dx-mcp-server
+  -- npx -y @8dx-io/8dx-mcp-server
 ```
 
 ## Cursor
@@ -189,7 +189,7 @@ After the package is published to npm, use `npx` instead of the local `node` pat
     "8dx": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@planet9group/8dx-mcp-server"],
+      "args": ["-y", "@8dx-io/8dx-mcp-server"],
       "env": {
         "EIGHTDX_API_BASE_URL": "https://dev-london.8dx.io",
         "EIGHTDX_REQUEST_TIMEOUT_MS": "30000"
@@ -211,6 +211,7 @@ npm install
 npm test
 npm run typecheck
 npm run build
+npm run smoke:stdio
 npm run dev
 ```
 
