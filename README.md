@@ -37,13 +37,13 @@ Permit helper tools currently support `ethereum` and `bsc`.
 ## Install
 
 ```bash
-npm install -g @8dx-io/8dx-mcp-server
+npm install -g @8dx/8dx-mcp-server
 ```
 
 Or run it directly:
 
 ```bash
-npx -y @8dx-io/8dx-mcp-server
+npx -y @8dx/8dx-mcp-server
 ```
 
 ## Configuration
@@ -70,7 +70,7 @@ Add this to `claude_desktop_config.json`:
   "mcpServers": {
     "8dx": {
       "command": "npx",
-      "args": ["-y", "@8dx-io/8dx-mcp-server"],
+      "args": ["-y", "@8dx/8dx-mcp-server"],
       "env": {
         "EIGHTDX_API_BASE_URL": "https://dev-london.8dx.io"
       }
@@ -82,7 +82,7 @@ Add this to `claude_desktop_config.json`:
 ## Claude Code
 
 ```bash
-claude mcp add 8dx --transport stdio -- npx -y @8dx-io/8dx-mcp-server
+claude mcp add 8dx --transport stdio -- npx -y @8dx/8dx-mcp-server
 ```
 
 ## OpenAI Codex
@@ -125,7 +125,7 @@ After the package is published to npm, use `npx` instead of the local `node` pat
 codex mcp add 8dx \
   --env EIGHTDX_API_BASE_URL=https://dev-london.8dx.io \
   --env EIGHTDX_REQUEST_TIMEOUT_MS=30000 \
-  -- npx -y @8dx-io/8dx-mcp-server
+  -- npx -y @8dx/8dx-mcp-server
 ```
 
 ## Cursor
@@ -189,7 +189,7 @@ After the package is published to npm, use `npx` instead of the local `node` pat
     "8dx": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@8dx-io/8dx-mcp-server"],
+      "args": ["-y", "@8dx/8dx-mcp-server"],
       "env": {
         "EIGHTDX_API_BASE_URL": "https://dev-london.8dx.io",
         "EIGHTDX_REQUEST_TIMEOUT_MS": "30000"

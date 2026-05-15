@@ -183,7 +183,7 @@ export class EightDxRestClient implements EightDxClient {
     const headers: Record<string, string> = {
       "X-Source": SOURCE_HEADER_VALUE,
       accept: "application/json, text/plain;q=0.9",
-      "user-agent": "@8dx-io/8dx-mcp-server"
+      "user-agent": "@8dx/8dx-mcp-server"
     };
 
     if (options.body !== undefined) {

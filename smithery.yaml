@@ -14,7 +14,7 @@ startCommand:
   commandFunction: |
     (config) => ({
       command: "npx",
-      args: ["-y", "@8dx-io/8dx-mcp-server"],
+      args: ["-y", "@8dx/8dx-mcp-server"],
       env: {
         EIGHTDX_API_BASE_URL: config.eightdxApiBaseUrl || "https://dev-london.8dx.io",
         EIGHTDX_REQUEST_TIMEOUT_MS: String(config.eightdxRequestTimeoutMs || 30000)
