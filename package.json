@@ -1,6 +1,6 @@
 {
   "name": "@8dx/8dx-mcp-server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server that exposes 8DX DEX aggregator REST endpoints as AI agent tools.",
   "type": "module",
   "license": "MIT",
