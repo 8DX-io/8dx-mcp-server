@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_API_BASE_URL, loadConfig } from "../src/config.js";
 
 describe("loadConfig", () => {
-  it("uses the public 8DX dev API by default", () => {
-    expect(loadConfig({}).apiBaseUrl).toBe(DEFAULT_API_BASE_URL);
+  it("uses the public 8DX production API by default", () => {
+    expect(DEFAULT_API_BASE_URL).toBe("https://swap.ggp.gg");
+    expect(loadConfig({}).apiBaseUrl).toBe("https://swap.ggp.gg");
   });
 
   it("uses EIGHTDX_API_BASE_URL and removes trailing slashes", () => {

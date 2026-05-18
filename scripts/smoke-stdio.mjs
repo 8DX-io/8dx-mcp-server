@@ -20,16 +20,24 @@ const expectedToolNames = [
 
 await access("dist/index.js");
 
+const serverEnv = {
+  PATH: process.env.PATH ?? ""
+};
+
+if (process.env.EIGHTDX_API_BASE_URL) {
+  serverEnv.EIGHTDX_API_BASE_URL = process.env.EIGHTDX_API_BASE_URL;
+}
+
+if (process.env.EIGHTDX_REQUEST_TIMEOUT_MS) {
+  serverEnv.EIGHTDX_REQUEST_TIMEOUT_MS = process.env.EIGHTDX_REQUEST_TIMEOUT_MS;
+}
+
 const client = new Client({ name: "8dx-stdio-smoke", version: "0.1.0" });
 const transport = new StdioClientTransport({
   command: "node",
   args: ["dist/index.js"],
   cwd: process.cwd(),
-  env: {
-    EIGHTDX_API_BASE_URL: process.env.EIGHTDX_API_BASE_URL ?? "https://dev-london.8dx.io",
-    EIGHTDX_REQUEST_TIMEOUT_MS: process.env.EIGHTDX_REQUEST_TIMEOUT_MS ?? "30000",
-    PATH: process.env.PATH ?? ""
-  },
+  env: serverEnv,
   stderr: "pipe"
 });
 

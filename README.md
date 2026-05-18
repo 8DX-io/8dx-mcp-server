@@ -48,10 +48,10 @@ npx -y @8dx/8dx-mcp-server
 
 ## Configuration
 
-| Environment variable         | Default                     | Description                      |
-| ---------------------------- | --------------------------- | -------------------------------- |
-| `EIGHTDX_API_BASE_URL`       | `https://dev-london.8dx.io` | 8DX REST API base URL.           |
-| `EIGHTDX_REQUEST_TIMEOUT_MS` | `30000`                     | Request timeout in milliseconds. |
+| Environment variable         | Default               | Description                      |
+| ---------------------------- | --------------------- | -------------------------------- |
+| `EIGHTDX_API_BASE_URL`       | `https://swap.ggp.gg` | 8DX REST API base URL.           |
+| `EIGHTDX_REQUEST_TIMEOUT_MS` | `30000`               | Request timeout in milliseconds. |
 
 All outgoing 8DX REST API requests include:
 
@@ -72,7 +72,7 @@ Add this to `claude_desktop_config.json`:
       "command": "npx",
       "args": ["-y", "@8dx/8dx-mcp-server"],
       "env": {
-        "EIGHTDX_API_BASE_URL": "https://dev-london.8dx.io"
+        "EIGHTDX_API_BASE_URL": "https://swap.ggp.gg"
       }
     }
   }
@@ -105,7 +105,7 @@ Then add the local server to Codex:
 
 ```bash
 codex mcp add 8dx-local \
-  --env EIGHTDX_API_BASE_URL=https://dev-london.8dx.io \
+  --env EIGHTDX_API_BASE_URL=https://swap.ggp.gg \
   --env EIGHTDX_REQUEST_TIMEOUT_MS=30000 \
   -- node /absolute/path/to/8dx-mcp-server/dist/index.js
 ```
@@ -123,7 +123,7 @@ After the package is published to npm, use `npx` instead of the local `node` pat
 
 ```bash
 codex mcp add 8dx \
-  --env EIGHTDX_API_BASE_URL=https://dev-london.8dx.io \
+  --env EIGHTDX_API_BASE_URL=https://swap.ggp.gg \
   --env EIGHTDX_REQUEST_TIMEOUT_MS=30000 \
   -- npx -y @8dx/8dx-mcp-server
 ```
@@ -157,7 +157,7 @@ Then create or update `.cursor/mcp.json` in the project where you want to use th
       "command": "node",
       "args": ["/absolute/path/to/8dx-mcp-server/dist/index.js"],
       "env": {
-        "EIGHTDX_API_BASE_URL": "https://dev-london.8dx.io",
+        "EIGHTDX_API_BASE_URL": "https://swap.ggp.gg",
         "EIGHTDX_REQUEST_TIMEOUT_MS": "30000"
       }
     }
@@ -191,7 +191,7 @@ After the package is published to npm, use `npx` instead of the local `node` pat
       "command": "npx",
       "args": ["-y", "@8dx/8dx-mcp-server"],
       "env": {
-        "EIGHTDX_API_BASE_URL": "https://dev-london.8dx.io",
+        "EIGHTDX_API_BASE_URL": "https://swap.ggp.gg",
         "EIGHTDX_REQUEST_TIMEOUT_MS": "30000"
       }
     }

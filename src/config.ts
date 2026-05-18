@@ -1,6 +1,6 @@
 import type { EightDxConfig } from "./types.js";
 
-export const DEFAULT_API_BASE_URL = "https://dev-london.8dx.io";
+export const DEFAULT_API_BASE_URL = "https://swap.ggp.gg";
 export const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): EightDxConfig {

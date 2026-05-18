@@ -6,7 +6,7 @@ startCommand:
       eightdxApiBaseUrl:
         type: string
         description: 8DX REST API base URL.
-        default: https://dev-london.8dx.io
+        default: https://swap.ggp.gg
       eightdxRequestTimeoutMs:
         type: number
         description: Request timeout in milliseconds.
@@ -16,7 +16,7 @@ startCommand:
       command: "npx",
       args: ["-y", "@8dx/8dx-mcp-server"],
       env: {
-        EIGHTDX_API_BASE_URL: config.eightdxApiBaseUrl || "https://dev-london.8dx.io",
+        EIGHTDX_API_BASE_URL: config.eightdxApiBaseUrl || "https://swap.ggp.gg",
         EIGHTDX_REQUEST_TIMEOUT_MS: String(config.eightdxRequestTimeoutMs || 30000)
       }
     })
