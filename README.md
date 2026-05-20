@@ -2,21 +2,34 @@
 
 MCP server that exposes 8DX DEX aggregator REST endpoints as tools for AI agents.
 
-The server is a thin TypeScript wrapper around the 8DX REST API. It does not hold keys,
-does not sign messages, does not custody funds, and does not send on-chain transactions.
+The server is a thin TypeScript wrapper around the 8DX REST API plus safe AI-flow helpers.
+It does not hold keys, does not sign messages, does not custody funds, and does not send
+on-chain transactions.
 
 ## Tools
 
-Supported `blockchain` value for quote, swap, and limit-order tools: `ethereum`.
-Permit helper tools currently support `ethereum` and `bsc`.
+Supported `blockchain` values for quote, swap, permit, and limit-order tools:
+`ethereum`, `bsc`, and `arbitrum`.
+
+### AI wallet session
+
+These tools help an AI agent keep conversational context for terminal or Telegram-style
+flows. The session is local in memory and stores only public wallet metadata.
+
+| Tool                         | Description                                                                                                     |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `eightdx_login_wallet`       | Records a public wallet address, blockchain, optional wallet app, and optional client surface for this MCP run. |
+| `eightdx_get_wallet_session` | Reads the current local wallet session, if any.                                                                 |
+| `eightdx_logout_wallet`      | Clears the local wallet session. This does not revoke token approvals or cancel on-chain permissions.           |
 
 ### Quotes and swaps
 
-| Tool                                                              | Description                                                                                                                |
-| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `eightdx_health`<br><sub>`GET /api/health`</sub>                  | Checks whether the 8DX API is reachable and responding normally.                                                           |
-| `eightdx_get_quote`<br><sub>`GET /api/{blockchain}/quote`</sub>   | Performs a read-only quote lookup for an exact token pair and amount.                                                      |
-| `eightdx_create_swap`<br><sub>`POST /api/{blockchain}/swap`</sub> | Returns swap calldata for a previously quoted path. The server does not sign, custody funds, or broadcast the transaction. |
+| Tool                                                                      | Description                                                                                                                |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `eightdx_health`<br><sub>`GET /api/health`</sub>                          | Checks whether the 8DX API is reachable and responding normally.                                                           |
+| `eightdx_get_quote`<br><sub>`GET /api/{blockchain}/quote`</sub>           | Performs a read-only quote lookup for a token pair and `amountIn` or `amountInWei`.                                        |
+| `eightdx_preview_market_swap`<br><sub>`GET /api/{blockchain}/quote`</sub> | Returns quote data plus a 30-second refresh hint, selected slippage/deadline, route-link metadata, and signing guidance.   |
+| `eightdx_create_swap`<br><sub>`POST /api/{blockchain}/swap`</sub>         | Returns swap calldata for a previously quoted path. The server does not sign, custody funds, or broadcast the transaction. |
 
 ### Permit helpers
 
@@ -27,12 +40,44 @@ Permit helper tools currently support `ethereum` and `bsc`.
 
 ### Limit orders
 
-| Tool                                                                                                   | Description                                                                   |
-| ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| `eightdx_create_limit_order`<br><sub>`POST /api/{blockchain}/order`</sub>                              | Submits an order payload that has already been signed outside the MCP server. |
-| `eightdx_get_limit_orders_by_maker`<br><sub>`GET /api/{blockchain}/orders/byMaker/{maker}`</sub>       | Reads active limit orders for a maker address.                                |
-| `eightdx_get_limit_order_history`<br><sub>`GET /api/{blockchain}/orders/byMaker/history/{maker}`</sub> | Reads historical limit orders for a maker address.                            |
-| `eightdx_cancel_limit_order`<br><sub>`POST /api/{blockchain}/orders/cancel`</sub>                      | Submits a cancel payload that has already been signed outside the MCP server. |
+| Tool                                                                                                   | Description                                                                                     |
+| ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `eightdx_create_limit_order`<br><sub>`POST /api/{blockchain}/order`</sub>                              | Submits an order payload that has already been signed outside the MCP server.                   |
+| `eightdx_get_limit_orders_by_maker`<br><sub>`GET /api/{blockchain}/orders/byMaker/{maker}`</sub>       | Reads active limit orders for a maker address.                                                  |
+| `eightdx_get_limit_order_history`<br><sub>`GET /api/{blockchain}/orders/byMaker/history/{maker}`</sub> | Reads historical limit orders for a maker address.                                              |
+| `eightdx_get_order_status`<br><sub>`GET /api/{blockchain}/orders/{orderHash}`</sub>                    | Reads one order by hash and returns scanner links for filled transaction hashes when available. |
+| `eightdx_cancel_limit_order`<br><sub>`POST /api/{blockchain}/orders/cancel`</sub>                      | Submits a cancel payload that has already been signed outside the MCP server.                   |
+
+### Explorer links
+
+| Tool                          | Description                                                                                                            |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `eightdx_build_explorer_link` | Builds Etherscan, BscScan, or Arbiscan links for transactions, addresses, and tokens. Explains off-chain order hashes. |
+
+## AI trading flow
+
+Recommended market-swap flow for an AI client:
+
+1. Call `eightdx_login_wallet` after the user provides a public wallet address.
+2. Call `eightdx_preview_market_swap` and show the quote, route link, slippage, deadline,
+   and `refreshAfterSeconds: 30`.
+3. Refresh the preview if the user waits longer than 30 seconds before confirming.
+4. Call `eightdx_create_swap` with the confirmed quoted path, slippage, deadline, and
+   destination wallet.
+5. Show the returned `to`, `data`, `value`, and approval information to the user's wallet
+   for external signing.
+6. After the user provides a transaction hash, call `eightdx_build_explorer_link` so the
+   terminal or Telegram bot can display a scanner link.
+
+Recommended limit-order flow:
+
+1. Prepare and sign the limit-order typed data outside this server.
+2. Submit the signed payload with `eightdx_create_limit_order`.
+3. Poll `eightdx_get_order_status` or read `eightdx_get_limit_order_history` for result,
+   filters, and fill transaction hashes.
+
+Telegram and terminal UIs should orchestrate these tools. This package intentionally does
+not run a Telegram bot, manage WalletConnect sessions, or automate wallet signing.
 
 ## Install
 

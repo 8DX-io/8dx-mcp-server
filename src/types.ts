@@ -1,5 +1,5 @@
-export type Blockchain = "ethereum";
-export type PermitBlockchain = "ethereum" | "bsc";
+export type Blockchain = "ethereum" | "bsc" | "arbitrum";
+export type PermitBlockchain = Blockchain;
 
 export type JsonObject = Record<string, unknown>;
 
@@ -12,7 +12,8 @@ export type QuoteInput = {
   blockchain: Blockchain;
   addressTokenIn: string;
   addressTokenOut: string;
-  amountIn: string;
+  amountIn?: string | undefined;
+  amountInWei?: string | undefined;
 };
 
 export type SwapInput = {

@@ -91,12 +91,39 @@ describe("8DX MCP server integration", () => {
         {
           arguments: {
             blockchain: "ethereum",
+            surface: "terminal",
+            walletAddress: "0xWallet",
+            walletApp: "Rabby"
+          },
+          name: "eightdx_login_wallet",
+          expected: { connected: true, session: { walletAddress: "0xWallet" } }
+        },
+        {
+          arguments: {},
+          name: "eightdx_get_wallet_session",
+          expected: { connected: true, session: { walletAddress: "0xWallet" } }
+        },
+        {
+          arguments: {
+            blockchain: "ethereum",
             addressTokenIn: "0xIn",
             addressTokenOut: "0xOut",
             amountIn: "100"
           },
           name: "eightdx_get_quote",
           expected: { data: { totalAmountOut: "2" } }
+        },
+        {
+          arguments: {
+            blockchain: "ethereum",
+            addressTokenIn: "0xIn",
+            addressTokenOut: "0xOut",
+            amountIn: "100",
+            dstAddress: "0xWallet",
+            slippageBps: 50
+          },
+          name: "eightdx_preview_market_swap",
+          expected: { refreshAfterSeconds: 30, selectedExecution: { slippageBps: 50 } }
         },
         {
           arguments: {
@@ -145,6 +172,16 @@ describe("8DX MCP server integration", () => {
           expected: { data: [] }
         },
         {
+          arguments: { blockchain: "ethereum", orderHash: "0xOrder" },
+          name: "eightdx_get_order_status",
+          expected: { order: { data: { orderHash: "0xorder" } } }
+        },
+        {
+          arguments: { blockchain: "ethereum", value: "0xTx", valueType: "transaction" },
+          name: "eightdx_build_explorer_link",
+          expected: { url: "https://etherscan.io/tx/0xTx" }
+        },
+        {
           arguments: {
             blockchain: "ethereum",
             deadline: 1_700_000_000,
@@ -154,6 +191,11 @@ describe("8DX MCP server integration", () => {
           },
           name: "eightdx_cancel_limit_order",
           expected: { success: true }
+        },
+        {
+          arguments: {},
+          name: "eightdx_logout_wallet",
+          expected: { connected: false, previousSession: { walletAddress: "0xWallet" } }
         }
       ];
 

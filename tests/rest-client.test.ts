@@ -11,7 +11,7 @@ function createJsonResponse(data: unknown, init?: ResponseInit): Response {
 }
 
 describe("EightDxRestClient", () => {
-  it("builds a quote request with blockchain path and query parameters", async () => {
+  it("builds a quote request with blockchain path and amount query parameters", async () => {
     const calls: Array<{ input: RequestInfo | URL; init: RequestInit | undefined }> = [];
     const fetchImpl: typeof fetch = async (input, init) => {
       calls.push({ input, init });
@@ -26,12 +26,13 @@ describe("EightDxRestClient", () => {
       blockchain: "ethereum",
       addressTokenIn: "0xIn",
       addressTokenOut: "0xOut",
-      amountIn: "1000000000000000000"
+      amountIn: "1",
+      amountInWei: "1000000000000000000"
     });
 
     expect(calls).toHaveLength(1);
     expect(String(calls[0]?.input)).toBe(
-      "https://api.example.test/api/ethereum/quote?addressTokenIn=0xIn&addressTokenOut=0xOut&amountIn=1000000000000000000"
+      "https://api.example.test/api/ethereum/quote?addressTokenIn=0xIn&addressTokenOut=0xOut&amountIn=1&amountInWei=1000000000000000000"
     );
     expect(calls[0]?.init?.method).toBe("GET");
   });

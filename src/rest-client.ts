@@ -55,7 +55,8 @@ export class EightDxRestClient implements EightDxClient {
       query: {
         addressTokenIn: input.addressTokenIn,
         addressTokenOut: input.addressTokenOut,
-        amountIn: input.amountIn
+        amountIn: input.amountIn,
+        amountInWei: input.amountInWei
       }
     });
   }

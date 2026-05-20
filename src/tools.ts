@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z, type ZodRawShape } from "zod";
 
-import type { EightDxClient, JsonObject } from "./types.js";
+import type { Blockchain, EightDxClient, JsonObject } from "./types.js";
 
 type ToolDefinition = {
   description: string;
@@ -12,13 +12,31 @@ type ToolDefinition = {
   title: string;
 };
 
+const supportedBlockchains = ["ethereum", "bsc", "arbitrum"] as const;
+
 const blockchainSchema = z
-  .enum(["ethereum"])
-  .describe("Blockchain network with live 8DX route support.");
+  .enum(supportedBlockchains)
+  .describe("Blockchain network with live 8DX API support.");
 
 const permitBlockchainSchema = z
-  .enum(["ethereum", "bsc"])
+  .enum(supportedBlockchains)
   .describe("Blockchain network with live 8DX permit helper support.");
+
+const walletSurfaceSchema = z
+  .enum(["terminal", "telegram", "other"])
+  .describe("Client surface that will display wallet prompts.");
+
+const explorerValueTypeSchema = z
+  .enum(["transaction", "address", "token", "order"])
+  .describe("Type of blockchain or 8DX identifier to link.");
+
+type WalletSession = {
+  blockchain: Blockchain;
+  connectedAt: string;
+  surface?: "terminal" | "telegram" | "other" | null | undefined;
+  walletAddress: string;
+  walletApp?: string | null | undefined;
+};
 
 const addressSchema = (description: string) =>
   z
@@ -83,6 +101,8 @@ const permitSwapBodySchema = z
   .passthrough();
 
 export function createEightDxToolDefinitions(client: EightDxClient): ToolDefinition[] {
+  let walletSession: WalletSession | null = null;
+
   return [
     {
       description: "Checks whether the configured 8DX REST API is reachable.",
@@ -93,16 +113,127 @@ export function createEightDxToolDefinitions(client: EightDxClient): ToolDefinit
     },
     {
       description:
+        "Stores a non-custodial local wallet session for AI-guided 8DX flows. This records only public wallet metadata and never stores private keys.",
+      handler: async (input) => {
+        const parsed = parseWalletLoginInput(input);
+        walletSession = {
+          ...parsed,
+          connectedAt: new Date().toISOString()
+        };
+
+        return toJsonToolResult({
+          connected: true,
+          session: walletSession,
+          safety: signingSafetyNotice(),
+          nextActions: [
+            "Use eightdx_preview_market_swap to refresh a market quote before creating calldata.",
+            "Use externally signed payloads for limit orders and cancel requests."
+          ]
+        });
+      },
+      inputSchema: {
+        blockchain: blockchainSchema,
+        surface: walletSurfaceSchema.nullable().optional(),
+        walletAddress: addressSchema("Public wallet address to associate with this MCP session."),
+        walletApp: z
+          .string()
+          .min(1)
+          .nullable()
+          .optional()
+          .describe("Optional wallet app name, such as MetaMask, Rabby, Trust Wallet, or Safe.")
+      },
+      name: "eightdx_login_wallet",
+      title: "Log In 8DX Wallet Session"
+    },
+    {
+      description: "Returns the current local non-custodial wallet session, if one is set.",
+      handler: async () =>
+        toJsonToolResult({
+          connected: walletSession !== null,
+          session: walletSession,
+          safety: signingSafetyNotice()
+        }),
+      inputSchema: {},
+      name: "eightdx_get_wallet_session",
+      title: "Get 8DX Wallet Session"
+    },
+    {
+      description:
+        "Clears the current local wallet session. This does not revoke wallet approvals or cancel on-chain permissions.",
+      handler: async () => {
+        const previousSession = walletSession;
+        walletSession = null;
+
+        return toJsonToolResult({
+          connected: false,
+          previousSession,
+          safety:
+            "Local MCP wallet session cleared. Revoke approvals in the wallet or block explorer if needed."
+        });
+      },
+      inputSchema: {},
+      name: "eightdx_logout_wallet",
+      title: "Log Out 8DX Wallet Session"
+    },
+    {
+      description:
         "Gets an 8DX swap quote for a token pair and amount. This is a read-only operation.",
       handler: async (input) => toJsonToolResult(await client.getQuote(parseQuoteInput(input))),
       inputSchema: {
         blockchain: blockchainSchema,
         addressTokenIn: addressSchema("Token address or native-token identifier to sell."),
         addressTokenOut: addressSchema("Token address or native-token identifier to buy."),
-        amountIn: amountSchema("Amount of the input token to quote.")
+        amountIn: amountSchema("Normalized input token amount to quote.").optional(),
+        amountInWei: amountSchema("Smallest-unit input token amount to quote.").optional()
       },
       name: "eightdx_get_quote",
       title: "Get 8DX Quote"
+    },
+    {
+      description:
+        "Previews a market swap for an AI-guided flow. Returns quote data, a 30-second refresh hint, selected slippage/deadline metadata, 8DX route link metadata, and external signing guidance.",
+      handler: async (input) => {
+        const parsed = parseMarketSwapPreviewInput(input);
+        const quote = await client.getQuote(parsed);
+
+        return toJsonToolResult({
+          quote,
+          refreshAfterSeconds: 30,
+          selectedExecution: {
+            deadline: parsed.deadline ?? null,
+            slippageBps: parsed.slippageBps ?? null
+          },
+          wallet: {
+            dstAddress: parsed.dstAddress ?? walletSession?.walletAddress ?? null,
+            session: walletSession
+          },
+          routeLink: buildEightDxRouteLink(parsed),
+          safety: signingSafetyNotice(),
+          nextActions: [
+            "Refresh this preview if it is older than 30 seconds before asking the user to confirm.",
+            "After user confirmation, call eightdx_create_swap with the quoted path, slippage, deadline, and destination wallet.",
+            "Display the returned transaction payload in the user's wallet for external signing."
+          ],
+          presentationHints: {
+            telegram:
+              "Show the quote summary, route link, slippage, deadline, and a wallet-open action.",
+            terminal:
+              "Print the quote summary, route link, and exact transaction fields before asking for confirmation."
+          }
+        });
+      },
+      inputSchema: {
+        blockchain: blockchainSchema,
+        addressTokenIn: addressSchema("Token address or native-token identifier to sell."),
+        addressTokenOut: addressSchema("Token address or native-token identifier to buy."),
+        amountIn: amountSchema("Normalized input token amount to quote.").optional(),
+        amountInWei: amountSchema("Smallest-unit input token amount to quote.").optional(),
+        deadline: z.number().int().nonnegative().nullable().optional(),
+        dstAddress: addressSchema("Optional destination wallet address.").nullable().optional(),
+        slippageBps: z.number().int().nonnegative().nullable().optional()
+      },
+      name: "eightdx_preview_market_swap",
+      title: "Preview 8DX Market Swap"
     },
     {
       description:
@@ -191,6 +322,52 @@ export function createEightDxToolDefinitions(client: EightDxClient): ToolDefinit
     },
     {
       description:
+        "Gets an 8DX limit order by hash and returns block explorer links for filled transaction hashes when present.",
+      handler: async (input) => {
+        const parsed = parseOrderStatusInput(input);
+        const order = await client.getLimitOrderByHash(parsed);
+        const filledTxHashes = extractFilledTxHashes(order);
+
+        return toJsonToolResult({
+          order,
+          status: extractOrderStatus(order),
+          explorerLinks: {
+            filledTransactions: filledTxHashes.map((hash) =>
+              buildExplorerLinkResult({
+                blockchain: parsed.blockchain,
+                value: hash,
+                valueType: "transaction"
+              })
+            )
+          },
+          nextActions:
+            filledTxHashes.length > 0
+              ? ["Open the scanner links to inspect filled transactions."]
+              : ["If the order is still active, poll this tool later or query order history."]
+        });
+      },
+      inputSchema: {
+        blockchain: blockchainSchema,
+        orderHash: z.string().min(1).describe("8DX order hash to inspect.")
+      },
+      name: "eightdx_get_order_status",
+      title: "Get 8DX Order Status"
+    },
+    {
+      description:
+        "Builds a chain-specific block explorer link for a transaction, address, token, or explains that an 8DX order hash is not a chain transaction.",
+      handler: async (input) =>
+        toJsonToolResult(buildExplorerLinkResult(parseExplorerLinkInput(input))),
+      inputSchema: {
+        blockchain: blockchainSchema,
+        value: z.string().min(1).describe("Hash or address to link."),
+        valueType: explorerValueTypeSchema
+      },
+      name: "eightdx_build_explorer_link",
+      title: "Build 8DX Explorer Link"
+    },
+    {
+      description:
         "Cancels an 8DX limit order using an already signed cancel payload. This tool does not create signatures.",
       handler: async (input) =>
         toJsonToolResult(await client.cancelLimitOrder(parseCancelOrderInput(input))),
@@ -238,7 +415,42 @@ function parseQuoteInput(input: Record<string, unknown>) {
       blockchain: blockchainSchema,
       addressTokenIn: z.string().min(1),
       addressTokenOut: z.string().min(1),
-      amountIn: z.string().min(1)
+      amountIn: z.string().min(1).optional(),
+      amountInWei: z.string().min(1).optional()
+    })
+    .refine((value) => value.amountIn !== undefined || value.amountInWei !== undefined, {
+      message: "Either amountIn or amountInWei must be provided.",
+      path: ["amountIn"]
+    })
+    .parse(input);
+}
+
+function parseWalletLoginInput(input: Record<string, unknown>): Omit<WalletSession, "connectedAt"> {
+  return z
+    .object({
+      blockchain: blockchainSchema,
+      surface: walletSurfaceSchema.nullable().optional(),
+      walletAddress: z.string().min(1),
+      walletApp: z.string().min(1).nullable().optional()
+    })
+    .parse(input);
+}
+
+function parseMarketSwapPreviewInput(input: Record<string, unknown>) {
+  return z
+    .object({
+      blockchain: blockchainSchema,
+      addressTokenIn: z.string().min(1),
+      addressTokenOut: z.string().min(1),
+      amountIn: z.string().min(1).optional(),
+      amountInWei: z.string().min(1).optional(),
+      deadline: z.number().int().nonnegative().nullable().optional(),
+      dstAddress: z.string().min(1).nullable().optional(),
+      slippageBps: z.number().int().nonnegative().nullable().optional()
+    })
+    .refine((value) => value.amountIn !== undefined || value.amountInWei !== undefined, {
+      message: "Either amountIn or amountInWei must be provided.",
+      path: ["amountIn"]
     })
     .parse(input);
 }
@@ -320,6 +532,129 @@ function parseCancelOrderInput(input: Record<string, unknown>) {
       signature: z.string().min(1)
     })
     .parse(input);
+}
+
+function parseOrderStatusInput(input: Record<string, unknown>) {
+  return z
+    .object({
+      blockchain: blockchainSchema,
+      orderHash: z.string().min(1)
+    })
+    .parse(input);
+}
+
+function parseExplorerLinkInput(input: Record<string, unknown>) {
+  return z
+    .object({
+      blockchain: blockchainSchema,
+      value: z.string().min(1),
+      valueType: explorerValueTypeSchema
+    })
+    .parse(input);
+}
+
+function signingSafetyNotice(): string {
+  return "8DX MCP never stores private keys, signs wallet messages, or broadcasts transactions. The user must review and sign externally in their wallet.";
+}
+
+function buildEightDxRouteLink(input: {
+  addressTokenIn: string;
+  addressTokenOut: string;
+  amountIn?: string | undefined;
+  amountInWei?: string | undefined;
+  blockchain: Blockchain;
+}): { note: string; url: string } {
+  const url = new URL("/swap", "https://8dx.io");
+  url.searchParams.set("blockchain", input.blockchain);
+  url.searchParams.set("addressTokenIn", input.addressTokenIn);
+  url.searchParams.set("addressTokenOut", input.addressTokenOut);
+
+  if (input.amountIn !== undefined) {
+    url.searchParams.set("amountIn", input.amountIn);
+  }
+
+  if (input.amountInWei !== undefined) {
+    url.searchParams.set("amountInWei", input.amountInWei);
+  }
+
+  return {
+    note: "Candidate 8DX web route link for clients that support pair prefill parameters.",
+    url: url.toString()
+  };
+}
+
+function buildExplorerLinkResult(input: {
+  blockchain: Blockchain;
+  value: string;
+  valueType: "transaction" | "address" | "token" | "order";
+}): {
+  blockchain: Blockchain;
+  note?: string;
+  url: string | null;
+  value: string;
+  valueType: string;
+} {
+  if (input.valueType === "order") {
+    return {
+      blockchain: input.blockchain,
+      note: "8DX order hashes are off-chain order identifiers, not blockchain transactions. Use eightdx_get_order_status for details.",
+      url: null,
+      value: input.value,
+      valueType: input.valueType
+    };
+  }
+
+  const pathByType = {
+    address: "address",
+    token: "token",
+    transaction: "tx"
+  } as const;
+
+  return {
+    blockchain: input.blockchain,
+    url: `${explorerBaseUrl(input.blockchain)}/${pathByType[input.valueType]}/${encodeURIComponent(
+      input.value
+    )}`,
+    value: input.value,
+    valueType: input.valueType
+  };
+}
+
+function explorerBaseUrl(blockchain: Blockchain): string {
+  const baseUrls: Record<Blockchain, string> = {
+    arbitrum: "https://arbiscan.io",
+    bsc: "https://bscscan.com",
+    ethereum: "https://etherscan.io"
+  };
+
+  return baseUrls[blockchain];
+}
+
+function extractFilledTxHashes(value: unknown): string[] {
+  const record = asRecord(value);
+  const direct = record?.filledTxHashes;
+  const nested = asRecord(record?.data)?.filledTxHashes;
+  const hashes = Array.isArray(direct) ? direct : nested;
+
+  return Array.isArray(hashes)
+    ? hashes.filter((hash): hash is string => typeof hash === "string")
+    : [];
+}
+
+function extractOrderStatus(value: unknown): string | null {
+  const record = asRecord(value);
+  const direct = record?.status;
+  const nested = asRecord(record?.data)?.status;
+
+  if (typeof direct === "string") {
+    return direct;
+  }
+
+  return typeof nested === "string" ? nested : null;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
 }
 
 export type { ToolDefinition };
