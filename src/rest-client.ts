@@ -15,6 +15,8 @@ import type {
 } from "./types.js";
 import { SOURCE_HEADER_VALUE } from "./version.js";
 
+type RestClientConfig = Pick<EightDxConfig, "apiBaseUrl" | "requestTimeoutMs">;
+
 type RequestOptions = {
   body?: unknown;
   method: "GET" | "POST";
@@ -37,10 +39,10 @@ export class EightDxApiError extends Error {
 }
 
 export class EightDxRestClient implements EightDxClient {
-  private readonly config: EightDxConfig;
+  private readonly config: RestClientConfig;
   private readonly fetchImpl: typeof fetch;
 
-  constructor(config: EightDxConfig, fetchImpl: typeof fetch = fetch) {
+  constructor(config: RestClientConfig, fetchImpl: typeof fetch = fetch) {
     this.config = config;
     this.fetchImpl = fetchImpl;
   }

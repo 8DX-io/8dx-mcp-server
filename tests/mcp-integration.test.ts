@@ -22,9 +22,41 @@ function createClientStub(): EightDxClient {
   };
 }
 
+function createWalletExecutionStub() {
+  return {
+    walletConnect: {
+      createSession: async () => ({
+        available: true,
+        status: "pending",
+        uri: "wc:test"
+      }),
+      disconnect: async () => ({ connected: false, status: "disconnected" }),
+      getSession: async () => ({
+        address: "0xWallet",
+        connected: true,
+        status: "connected"
+      }),
+      sendTransaction: async () => ({
+        mode: "walletconnect",
+        txHash: "0xWalletConnectTx"
+      })
+    },
+    localSigner: {
+      getStatus: () => ({ enabled: false, reason: "disabled by test" }),
+      signAndSendTransaction: async () => ({
+        mode: "local-signer",
+        txHash: "0xLocalSignerTx"
+      })
+    }
+  };
+}
+
 describe("8DX MCP server integration", () => {
   it("lists and calls tools over an MCP transport", async () => {
-    const server = createEightDxMcpServer({ client: createClientStub() });
+    const server = createEightDxMcpServer({
+      client: createClientStub(),
+      walletExecution: createWalletExecutionStub()
+    });
     const client = new Client({ name: "test-client", version: "0.1.0" });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 
@@ -47,7 +79,10 @@ describe("8DX MCP server integration", () => {
   });
 
   it("calls every registered tool over an MCP transport and returns JSON text content", async () => {
-    const server = createEightDxMcpServer({ client: createClientStub() });
+    const server = createEightDxMcpServer({
+      client: createClientStub(),
+      walletExecution: createWalletExecutionStub()
+    });
     const client = new Client({ name: "test-client", version: "0.1.0" });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 
@@ -209,6 +244,37 @@ describe("8DX MCP server integration", () => {
           arguments: {},
           name: "eightdx_logout_wallet",
           expected: { connected: false, previousSession: { walletAddress: "0xWallet" } }
+        },
+        {
+          arguments: { blockchain: "ethereum" },
+          name: "eightdx_walletconnect_create_session",
+          expected: { available: true, status: "pending", uri: "wc:test" }
+        },
+        {
+          arguments: {},
+          name: "eightdx_walletconnect_get_session",
+          expected: { address: "0xWallet", connected: true }
+        },
+        {
+          arguments: {
+            blockchain: "ethereum",
+            confirmedByUser: true,
+            data: "0xabcdef",
+            to: "0xAggregator",
+            value: "0"
+          },
+          name: "eightdx_wallet_send_transaction",
+          expected: { mode: "walletconnect", txHash: "0xWalletConnectTx" }
+        },
+        {
+          arguments: {},
+          name: "eightdx_local_signer_status",
+          expected: { enabled: false, reason: "disabled by test" }
+        },
+        {
+          arguments: {},
+          name: "eightdx_walletconnect_disconnect",
+          expected: { connected: false, status: "disconnected" }
         }
       ];
 
@@ -259,11 +325,41 @@ describe("8DX MCP server integration", () => {
         .map((message) => (message.content.type === "text" ? message.content.text : ""))
         .join("\n");
 
-      expect(text).toContain("eightdx_get_wallet_session");
-      expect(text).toContain("eightdx_search_tokens");
-      expect(text).toContain("Ask a follow-up question");
-      expect(text).toContain("eightdx_preview_market_swap");
-      expect(text).toContain("do not sign");
+      const requiredFragments = [
+        "eightdx_get_wallet_session",
+        "eightdx_walletconnect_get_session",
+        "eightdx_walletconnect_create_session",
+        "WalletConnect-first",
+        "connected WalletConnect account as the wallet session",
+        "fromAddress and dstAddress to the connected wallet",
+        "eightdx_search_tokens",
+        "Ask a follow-up question",
+        "eightdx_preview_market_swap",
+        "explicit confirmation",
+        "eightdx_create_swap",
+        "eightdx_wallet_send_transaction",
+        "fallback",
+        "do not sign"
+      ];
+
+      for (const requiredFragment of requiredFragments) {
+        expect(text).toContain(requiredFragment);
+      }
+
+      const tradingPrompt = await client.getPrompt({
+        name: "eightdx_trading_agent",
+        arguments: {
+          surface: "telegram"
+        }
+      });
+
+      const tradingText = tradingPrompt.messages
+        .map((message) => (message.content.type === "text" ? message.content.text : ""))
+        .join("\n");
+
+      expect(tradingText).toContain("Resolve or ask for the target chain");
+      expect(tradingText).toContain("before creating a WalletConnect session");
+      expect(tradingText).toContain("explicit user acceptance");
     } finally {
       await client.close();
       await server.close();

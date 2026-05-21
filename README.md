@@ -3,8 +3,9 @@
 MCP server that exposes 8DX DEX aggregator REST endpoints as tools for AI agents.
 
 The server is a thin TypeScript wrapper around the 8DX REST API plus safe AI-flow helpers.
-It does not hold keys, does not sign messages, does not custody funds, and does not send
-on-chain transactions.
+By default it does not hold keys, sign, custody funds, or send on-chain transactions. When
+explicitly configured, it can also create WalletConnect transaction requests or use an opt-in
+local signer after the user confirms a prepared transaction.
 
 ## Tools
 
@@ -22,6 +23,21 @@ flows. The session is local in memory and stores only public wallet metadata.
 | `eightdx_get_wallet_session` | Reads the current local wallet session, if any.                                                                 |
 | `eightdx_logout_wallet`      | Clears the local wallet session. This does not revoke token approvals or cancel on-chain permissions.           |
 
+### Wallet execution
+
+These tools let an AI client offer a direct wallet path. WalletConnect is the preferred
+production path: the user's wallet signs and broadcasts after showing its own confirmation UI.
+The local signer is disabled unless environment variables explicitly enable it.
+
+| Tool                                      | Description                                                                                                |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `eightdx_walletconnect_create_session`    | Creates a WalletConnect URI and MetaMask deeplink so the user can connect a wallet.                        |
+| `eightdx_walletconnect_get_session`       | Reads the current WalletConnect session and connected account, optionally waiting for a pending approval.  |
+| `eightdx_walletconnect_disconnect`        | Disconnects the active WalletConnect session.                                                              |
+| `eightdx_wallet_send_transaction`         | Requests `eth_sendTransaction` through the connected wallet. Requires `confirmedByUser: true`.             |
+| `eightdx_local_signer_status`             | Shows whether the opt-in MCP-side signer is enabled and which address/chains are configured.               |
+| `eightdx_local_sign_and_send_transaction` | Signs and broadcasts with the opt-in local signer. Requires env configuration and `confirmedByUser: true`. |
+
 ### Token discovery
 
 | Tool                                                    | Description                                                                                              |
@@ -30,13 +46,13 @@ flows. The session is local in memory and stores only public wallet metadata.
 
 ### Quotes and swaps
 
-| Tool                                                                      | Description                                                                                                                |
-| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `eightdx_health`<br><sub>`GET /api/health`</sub>                          | Checks whether the 8DX API is reachable and responding normally.                                                           |
-| `eightdx_get_quote`<br><sub>`GET /api/{blockchain}/quote`</sub>           | Performs a read-only quote lookup for a token pair and `amountIn` or `amountInWei`.                                        |
-| `eightdx_preview_market_swap`<br><sub>`GET /api/{blockchain}/quote`</sub> | Returns quote data plus a 30-second refresh hint, selected slippage/deadline, route-link metadata, and signing guidance.   |
-| `eightdx_get_wallet_links`                                                | Builds an 8DX web URL and MetaMask Mobile dapp deeplink for wallet handoff.                                                |
-| `eightdx_create_swap`<br><sub>`POST /api/{blockchain}/swap`</sub>         | Returns swap calldata for a previously quoted path. The server does not sign, custody funds, or broadcast the transaction. |
+| Tool                                                                      | Description                                                                                                              |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `eightdx_health`<br><sub>`GET /api/health`</sub>                          | Checks whether the 8DX API is reachable and responding normally.                                                         |
+| `eightdx_get_quote`<br><sub>`GET /api/{blockchain}/quote`</sub>           | Performs a read-only quote lookup for a token pair and `amountIn` or `amountInWei`.                                      |
+| `eightdx_preview_market_swap`<br><sub>`GET /api/{blockchain}/quote`</sub> | Returns quote data plus a 30-second refresh hint, selected slippage/deadline, route-link metadata, and signing guidance. |
+| `eightdx_get_wallet_links`                                                | Builds an 8DX web URL and MetaMask Mobile dapp deeplink for wallet handoff.                                              |
+| `eightdx_create_swap`<br><sub>`POST /api/{blockchain}/swap`</sub>         | Returns swap calldata for a previously quoted path. This tool does not sign, custody funds, or broadcast by itself.      |
 
 ### Permit helpers
 
@@ -74,31 +90,45 @@ language into safe tool sequences:
 
 ## AI trading flow
 
-Recommended market-swap flow for an AI client:
+Recommended WalletConnect-first market-swap flow for an AI client:
 
-1. Call `eightdx_get_wallet_session`. If no wallet is connected, ask for a public
-   wallet address, chain, and wallet app, then call `eightdx_login_wallet`.
-2. If the user names tokens in natural language, call `eightdx_search_tokens`. If
+1. Resolve or ask for the target chain before creating a WalletConnect session. If
+   the user names tokens in natural language, call `eightdx_search_tokens`. If
    results are ambiguous, ask which token/address to use before quoting.
-3. If the request is missing the output token, chain, amount, slippage, or deadline,
-   ask a follow-up question. For example, "обменяй мне 1 биткоин по рынку" is missing
+2. If the request is missing the output token, amount, slippage, or deadline, ask
+   a follow-up question. For example, "обменяй мне 1 биткоин по рынку" is missing
    the token the user wants to receive.
-4. Call `eightdx_preview_market_swap` and show the quote, route link, wallet links,
-   slippage, deadline, and `refreshAfterSeconds: 30`.
-5. Refresh the preview if the user waits longer than 30 seconds before confirming.
-6. If the user wants the 8DX UI, show `routeLink.url`, `walletLinks.webUrl`, or
-   `walletLinks.metamaskMobileDappUrl` so they can finish in a wallet-enabled browser.
-7. If the user wants to continue through the AI flow, ask for explicit confirmation,
-   then call `eightdx_create_swap` with the confirmed quoted path, slippage, deadline,
-   and destination wallet.
-8. Show the returned `to`, `data`, `value`, and approval information to the user's
-   wallet for external signing.
-9. After the user provides a transaction hash, call `eightdx_build_explorer_link` so
-   the terminal or Telegram bot can display a scanner link.
-
-The MCP server can prepare the quote, calldata, route links, and status links. It cannot
-fully complete a swap alone, because signing and broadcasting must happen in the user's
-wallet or in a separate wallet-integration layer controlled by the user.
+3. Call `eightdx_get_wallet_session` and `eightdx_walletconnect_get_session`.
+4. If WalletConnect is unavailable, explain that direct wallet confirmation
+   requires `EIGHTDX_WALLETCONNECT_PROJECT_ID`. Call
+   `eightdx_preview_market_swap` to generate a fresh quote and route metadata,
+   then offer `routeLink.url`, `walletLinks.webUrl`, or
+   `walletLinks.metamaskMobileDappUrl` only as fallback web handoff links. Do not
+   call `eightdx_create_swap` or `eightdx_wallet_send_transaction` in this
+   fallback branch.
+5. If WalletConnect is available but not connected, call
+   `eightdx_walletconnect_create_session` for the selected chain and show the
+   URI/deeplink. Ask the user to connect in their wallet, then call
+   `eightdx_walletconnect_get_session` again.
+6. After WalletConnect connects, call `eightdx_login_wallet` with the connected
+   public account, chain, surface, and wallet app when known. For normal
+   self-swaps, this connected account is both `fromAddress` and `dstAddress`.
+7. Call `eightdx_preview_market_swap` with `dstAddress` set to the connected
+   wallet and show the quote, route, price impact, slippage, deadline, and
+   `refreshAfterSeconds: 30`.
+8. Refresh the preview if the user waits longer than 30 seconds before confirming.
+9. Ask for explicit confirmation of the fresh quote and swap parameters. Then call
+   `eightdx_create_swap` with the confirmed quoted path, slippage, deadline,
+   `fromAddress`, and `dstAddress`.
+10. Show the returned `to`, `data`, `value`, chain, sender, and recipient. Then
+    call `eightdx_wallet_send_transaction` with `confirmedByUser: true`; the
+    connected wallet signs and broadcasts only after the user approves in the
+    wallet UI.
+11. Use `eightdx_local_sign_and_send_transaction` only when
+    `eightdx_local_signer_status` says enabled and the user explicitly asked the
+    MCP server to sign and send.
+12. After a transaction hash is returned, call `eightdx_build_explorer_link` so
+    the terminal or Telegram bot can display a scanner link.
 
 Recommended limit-order flow:
 
@@ -107,8 +137,9 @@ Recommended limit-order flow:
 3. Poll `eightdx_get_order_status` or read `eightdx_get_limit_order_history` for result,
    filters, and fill transaction hashes.
 
-Telegram and terminal UIs should orchestrate these tools. This package intentionally does
-not run a Telegram bot, manage WalletConnect sessions, or automate wallet signing.
+Telegram and terminal UIs should orchestrate these tools. This package does not run a
+Telegram bot, but it exposes the MCP tools needed for the bot or AI host to manage wallet
+connection, quote refresh, transaction confirmation, status, and history.
 
 ## Install
 
@@ -124,10 +155,22 @@ npx -y @8dx/8dx-mcp-server
 
 ## Configuration
 
-| Environment variable         | Default               | Description                      |
-| ---------------------------- | --------------------- | -------------------------------- |
-| `EIGHTDX_API_BASE_URL`       | `https://swap.ggp.gg` | 8DX REST API base URL.           |
-| `EIGHTDX_REQUEST_TIMEOUT_MS` | `30000`               | Request timeout in milliseconds. |
+| Environment variable                         | Default                            | Description                                                                   |
+| -------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------- |
+| `EIGHTDX_API_BASE_URL`                       | `https://swap.ggp.gg`              | 8DX REST API base URL.                                                        |
+| `EIGHTDX_REQUEST_TIMEOUT_MS`                 | `30000`                            | Request timeout in milliseconds.                                              |
+| `EIGHTDX_WALLETCONNECT_PROJECT_ID`           | unset                              | Enables WalletConnect session creation when set.                              |
+| `EIGHTDX_WALLETCONNECT_RELAY_URL`            | unset                              | Optional WalletConnect relay override.                                        |
+| `EIGHTDX_WALLETCONNECT_METADATA_NAME`        | `8DX MCP`                          | WalletConnect app name shown in wallets.                                      |
+| `EIGHTDX_WALLETCONNECT_METADATA_DESCRIPTION` | `8DX MCP server wallet connection` | WalletConnect app description shown in wallets.                               |
+| `EIGHTDX_WALLETCONNECT_METADATA_URL`         | `https://8dx.io`                   | WalletConnect app URL shown in wallets.                                       |
+| `EIGHTDX_WALLETCONNECT_METADATA_ICONS`       | unset                              | Comma-separated icon URLs for WalletConnect metadata.                         |
+| `EIGHTDX_ENABLE_LOCAL_SIGNER`                | `false`                            | Enables MCP-side transaction signing only when set to `true`.                 |
+| `EIGHTDX_SIGNER_PRIVATE_KEY`                 | unset                              | Private key for the opt-in local signer. Never use this in an untrusted host. |
+| `EIGHTDX_RPC_URL`                            | unset                              | Default Ethereum RPC URL for the local signer.                                |
+| `EIGHTDX_ETHEREUM_RPC_URL`                   | unset                              | Ethereum RPC URL for the local signer. Overrides `EIGHTDX_RPC_URL`.           |
+| `EIGHTDX_BSC_RPC_URL`                        | unset                              | BNB Smart Chain RPC URL for the local signer.                                 |
+| `EIGHTDX_ARBITRUM_RPC_URL`                   | unset                              | Arbitrum RPC URL for the local signer.                                        |
 
 All outgoing 8DX REST API requests include:
 
@@ -294,9 +337,11 @@ npm run dev
 
 ## Safety
 
-This MCP server only calls the 8DX REST API. It does not provide financial advice. Agents and
-users must inspect all swap calldata, permit data, signatures, and order payloads before using them
-with a wallet or broadcasting anything on-chain.
+This MCP server does not provide financial advice. Agents and users must inspect all swap
+calldata, permit data, signatures, transaction fields, and order payloads before using them
+with a wallet or broadcasting anything on-chain. Direct execution tools require
+`confirmedByUser: true`; WalletConnect still relies on the user's wallet confirmation UI, and the
+local signer should only be enabled in a trusted environment.
 
 ## License
 

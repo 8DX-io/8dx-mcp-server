@@ -5,7 +5,22 @@ export type JsonObject = Record<string, unknown>;
 
 export type EightDxConfig = {
   apiBaseUrl: string;
+  localSigner: {
+    enabled: boolean;
+    privateKey?: `0x${string}` | undefined;
+    rpcUrls: Partial<Record<Blockchain, string>>;
+  };
   requestTimeoutMs: number;
+  walletConnect: {
+    metadata: {
+      description: string;
+      icons: string[];
+      name: string;
+      url: string;
+    };
+    projectId?: string | undefined;
+    relayUrl?: string | undefined;
+  };
 };
 
 export type QuoteInput = {

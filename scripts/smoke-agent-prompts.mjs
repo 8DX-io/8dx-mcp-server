@@ -35,11 +35,20 @@ try {
     .join("\n");
 
   for (const requiredFragment of [
+    "WalletConnect-first",
     "eightdx_get_wallet_session",
+    "eightdx_walletconnect_get_session",
+    "eightdx_walletconnect_create_session",
+    "connected WalletConnect account as the wallet session",
+    "fromAddress and dstAddress to the connected wallet",
     "eightdx_search_tokens",
     "Ask a follow-up question",
     "eightdx_preview_market_swap",
-    "do not sign"
+    "eightdx_create_swap",
+    "eightdx_wallet_send_transaction",
+    "fallback web handoff",
+    "eightdx_local_signer_status",
+    "explicit confirmation"
   ]) {
     if (!promptText.includes(requiredFragment)) {
       throw new Error(`Prompt scenario is missing: ${requiredFragment}`);
@@ -53,6 +62,24 @@ try {
 
   if (initialSession.connected !== false) {
     throw new Error("New MCP session should start without a logged-in wallet.");
+  }
+
+  const walletConnectSession = parseToolJson(
+    await client.callTool({ name: "eightdx_walletconnect_get_session", arguments: {} }),
+    "eightdx_walletconnect_get_session"
+  );
+
+  if (walletConnectSession.available !== false || walletConnectSession.status !== "unavailable") {
+    throw new Error("WalletConnect should be unavailable until a project ID is configured.");
+  }
+
+  const localSignerStatus = parseToolJson(
+    await client.callTool({ name: "eightdx_local_signer_status", arguments: {} }),
+    "eightdx_local_signer_status"
+  );
+
+  if (localSignerStatus.enabled !== false) {
+    throw new Error("Local signer should be disabled by default.");
   }
 
   const tokenSearch = parseToolJson(
@@ -154,12 +181,18 @@ try {
         ok: true,
         scenario: "обменяй мне 1 биткоин по рынку",
         agentInstructionChecks: {
-          asksLoginWhenMissing: true,
+          walletConnectFirst: true,
+          checksWalletConnectSession: true,
+          instructsConnectedWalletSelfSwap: true,
           resolvesTokens: true,
           asksClarifyingQuestionWhenOutputTokenMissing: true,
           previewsBeforeSwap: true,
-          forbidsMcpSigning: true
+          instructsWalletConnectExecution: true,
+          keepsLocalSignerDisabledByDefault: true,
+          usesWebLinksAsFallback: true
         },
+        walletConnect: walletConnectSession,
+        localSigner: localSignerStatus,
         token: {
           address: wbtc.address,
           symbol: wbtc.symbol

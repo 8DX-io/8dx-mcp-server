@@ -23,6 +23,48 @@ function createClientStub(): EightDxClient {
   };
 }
 
+function createWalletExecutionStub() {
+  return {
+    walletConnect: {
+      createSession: async () => ({
+        accounts: [],
+        available: true,
+        deeplinks: {
+          metamask: "https://metamask.app.link/wc?uri=wc%3Atest"
+        },
+        status: "pending",
+        uri: "wc:test"
+      }),
+      disconnect: async () => ({ connected: false, status: "disconnected" }),
+      getSession: async () => ({
+        accounts: ["eip155:1:0xWallet"],
+        address: "0xWallet",
+        available: true,
+        blockchain: "ethereum",
+        connected: true,
+        status: "connected"
+      }),
+      sendTransaction: async (input: Record<string, unknown>) => ({
+        mode: "walletconnect",
+        txHash: "0xWalletConnectTx",
+        input
+      })
+    },
+    localSigner: {
+      getStatus: () => ({
+        address: "0xSigner",
+        blockchain: "ethereum",
+        enabled: true
+      }),
+      signAndSendTransaction: async (input: Record<string, unknown>) => ({
+        mode: "local-signer",
+        txHash: "0xLocalSignerTx",
+        input
+      })
+    }
+  };
+}
+
 describe("createEightDxToolDefinitions", () => {
   it("exposes one MCP tool for each supported 8DX REST route", () => {
     const tools = createEightDxToolDefinitions(createClientStub());
@@ -44,7 +86,13 @@ describe("createEightDxToolDefinitions", () => {
       "eightdx_get_limit_order_history",
       "eightdx_get_order_status",
       "eightdx_build_explorer_link",
-      "eightdx_cancel_limit_order"
+      "eightdx_cancel_limit_order",
+      "eightdx_walletconnect_create_session",
+      "eightdx_walletconnect_get_session",
+      "eightdx_walletconnect_disconnect",
+      "eightdx_wallet_send_transaction",
+      "eightdx_local_signer_status",
+      "eightdx_local_sign_and_send_transaction"
     ]);
   });
 
@@ -199,8 +247,20 @@ describe("createEightDxToolDefinitions", () => {
           "https://8dx.io/swap?blockchain=bsc&addressTokenIn=0xIn&addressTokenOut=0xOut&amountInWei=1000000000000000000",
         metamaskMobileDappUrl:
           "https://metamask.app.link/dapp/8dx.io/swap?blockchain=bsc&addressTokenIn=0xIn&addressTokenOut=0xOut&amountInWei=1000000000000000000"
+      },
+      nextActions: expect.arrayContaining([
+        expect.stringContaining("WalletConnect"),
+        expect.stringContaining("connected wallet as both sender and destination"),
+        expect.stringContaining("eightdx_wallet_send_transaction")
+      ]),
+      presentationHints: {
+        telegram: expect.stringContaining("WalletConnect"),
+        terminal: expect.stringContaining("fallback web handoff")
       }
     });
+
+    expect((result as { presentationHints: { terminal: string } }).presentationHints.terminal).not
+      .toContain("route link");
 
     const routeUrl = new URL((result as { routeLink: { url: string } }).routeLink.url);
     expect(routeUrl.origin).toBe("https://8dx.io");
@@ -225,9 +285,140 @@ describe("createEightDxToolDefinitions", () => {
       webUrl: "https://8dx.io/swap?blockchain=ethereum",
       metamaskMobileDappUrl: "https://metamask.app.link/dapp/8dx.io/swap?blockchain=ethereum",
       instructions: expect.arrayContaining([
-        expect.stringContaining("Open the webUrl"),
+        expect.stringContaining("fallback"),
+        expect.stringContaining("WalletConnect"),
+        expect.stringContaining("webUrl"),
         expect.stringContaining("MetaMask Mobile")
-      ])
+      ]),
+      walletConnectNote: expect.stringContaining("EIGHTDX_WALLETCONNECT_PROJECT_ID")
+    });
+  });
+
+  it("creates WalletConnect sessions and sends wallet transaction requests", async () => {
+    const tools = createEightDxToolDefinitions(createClientStub(), {
+      walletExecution: createWalletExecutionStub()
+    });
+    const createSessionTool = tools.find(
+      (tool) => tool.name === "eightdx_walletconnect_create_session"
+    );
+    const getSessionTool = tools.find((tool) => tool.name === "eightdx_walletconnect_get_session");
+    const sendTool = tools.find((tool) => tool.name === "eightdx_wallet_send_transaction");
+    const disconnectTool = tools.find((tool) => tool.name === "eightdx_walletconnect_disconnect");
+
+    expect(
+      parseToolJson(
+        (await createSessionTool?.handler({ blockchain: "ethereum" })) as CallToolResult
+      )
+    ).toMatchObject({
+      available: true,
+      status: "pending",
+      uri: "wc:test"
+    });
+    expect(parseToolJson((await getSessionTool?.handler({})) as CallToolResult)).toMatchObject({
+      address: "0xWallet",
+      connected: true
+    });
+    expect(
+      parseToolJson(
+        (await sendTool?.handler({
+          blockchain: "ethereum",
+          confirmedByUser: true,
+          data: "0xabcdef",
+          fromAddress: "0xWallet",
+          to: "0xAggregator",
+          value: "0"
+        })) as CallToolResult
+      )
+    ).toMatchObject({
+      mode: "walletconnect",
+      txHash: "0xWalletConnectTx"
+    });
+    expect(parseToolJson((await disconnectTool?.handler({})) as CallToolResult)).toMatchObject({
+      connected: false,
+      status: "disconnected"
+    });
+  });
+
+  it("keeps direct execution disabled unless WalletConnect or local signer is configured", async () => {
+    const tools = createEightDxToolDefinitions(createClientStub());
+    const walletSessionTool = tools.find(
+      (tool) => tool.name === "eightdx_walletconnect_get_session"
+    );
+    const localStatusTool = tools.find((tool) => tool.name === "eightdx_local_signer_status");
+    const walletSendTool = tools.find((tool) => tool.name === "eightdx_wallet_send_transaction");
+
+    expect(parseToolJson((await walletSessionTool?.handler({})) as CallToolResult)).toMatchObject({
+      available: false,
+      connected: false,
+      status: "unavailable"
+    });
+    expect(parseToolJson((await localStatusTool?.handler({})) as CallToolResult)).toMatchObject({
+      enabled: false
+    });
+    await expect(
+      walletSendTool?.handler({
+        blockchain: "ethereum",
+        confirmedByUser: true,
+        data: "0xabcdef",
+        to: "0xAggregator",
+        value: "0"
+      })
+    ).rejects.toThrow("WalletConnect is disabled.");
+  });
+
+  it("requires explicit confirmation before wallet or local signer sends", async () => {
+    const tools = createEightDxToolDefinitions(createClientStub(), {
+      walletExecution: createWalletExecutionStub()
+    });
+    const walletSendTool = tools.find((tool) => tool.name === "eightdx_wallet_send_transaction");
+    const localSendTool = tools.find(
+      (tool) => tool.name === "eightdx_local_sign_and_send_transaction"
+    );
+
+    await expect(
+      walletSendTool?.handler({
+        blockchain: "ethereum",
+        confirmedByUser: false,
+        data: "0xabcdef",
+        to: "0xAggregator",
+        value: "0"
+      })
+    ).rejects.toThrow("confirmedByUser must be true");
+    await expect(
+      localSendTool?.handler({
+        blockchain: "ethereum",
+        confirmedByUser: false,
+        data: "0xabcdef",
+        to: "0xAggregator",
+        value: "0"
+      })
+    ).rejects.toThrow("confirmedByUser must be true");
+  });
+
+  it("reports local signer status and can send through an explicitly enabled signer", async () => {
+    const tools = createEightDxToolDefinitions(createClientStub(), {
+      walletExecution: createWalletExecutionStub()
+    });
+    const statusTool = tools.find((tool) => tool.name === "eightdx_local_signer_status");
+    const sendTool = tools.find((tool) => tool.name === "eightdx_local_sign_and_send_transaction");
+
+    expect(parseToolJson((await statusTool?.handler({})) as CallToolResult)).toMatchObject({
+      address: "0xSigner",
+      enabled: true
+    });
+    expect(
+      parseToolJson(
+        (await sendTool?.handler({
+          blockchain: "ethereum",
+          confirmedByUser: true,
+          data: "0xabcdef",
+          to: "0xAggregator",
+          value: "0"
+        })) as CallToolResult
+      )
+    ).toMatchObject({
+      mode: "local-signer",
+      txHash: "0xLocalSignerTx"
     });
   });
 

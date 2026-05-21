@@ -51,6 +51,8 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "@walletconnect/sign-client": "^2.23.9",
+    "viem": "^2.50.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {

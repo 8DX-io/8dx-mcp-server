@@ -17,4 +17,57 @@ describe("loadConfig", () => {
   it("uses EIGHTDX_REQUEST_TIMEOUT_MS when it is a positive integer", () => {
     expect(loadConfig({ EIGHTDX_REQUEST_TIMEOUT_MS: "15000" }).requestTimeoutMs).toBe(15_000);
   });
+
+  it("keeps WalletConnect and local signing disabled by default", () => {
+    const config = loadConfig({});
+
+    expect(config.walletConnect.projectId).toBeUndefined();
+    expect(config.localSigner).toMatchObject({
+      enabled: false,
+      rpcUrls: {}
+    });
+    expect(config.localSigner.privateKey).toBeUndefined();
+  });
+
+  it("loads WalletConnect and opt-in local signer settings from env", () => {
+    const config = loadConfig({
+      EIGHTDX_ENABLE_LOCAL_SIGNER: "true",
+      EIGHTDX_ETHEREUM_RPC_URL: "https://rpc.example.test///",
+      EIGHTDX_SIGNER_PRIVATE_KEY:
+        "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      EIGHTDX_WALLETCONNECT_METADATA_DESCRIPTION: "Test description",
+      EIGHTDX_WALLETCONNECT_METADATA_ICONS: "https://example.test/icon.png",
+      EIGHTDX_WALLETCONNECT_METADATA_NAME: "Test 8DX",
+      EIGHTDX_WALLETCONNECT_METADATA_URL: "https://example.test",
+      EIGHTDX_WALLETCONNECT_PROJECT_ID: "project-id",
+      EIGHTDX_WALLETCONNECT_RELAY_URL: "wss://relay.example.test///"
+    });
+
+    expect(config.walletConnect).toEqual({
+      metadata: {
+        description: "Test description",
+        icons: ["https://example.test/icon.png"],
+        name: "Test 8DX",
+        url: "https://example.test"
+      },
+      projectId: "project-id",
+      relayUrl: "wss://relay.example.test"
+    });
+    expect(config.localSigner).toEqual({
+      enabled: true,
+      privateKey: "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      rpcUrls: {
+        ethereum: "https://rpc.example.test"
+      }
+    });
+  });
+
+  it("ignores invalid local signer private keys", () => {
+    const config = loadConfig({
+      EIGHTDX_ENABLE_LOCAL_SIGNER: "true",
+      EIGHTDX_SIGNER_PRIVATE_KEY: "0xabc123"
+    });
+
+    expect(config.localSigner.privateKey).toBeUndefined();
+  });
 });

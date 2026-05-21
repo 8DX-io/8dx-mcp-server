@@ -21,7 +21,15 @@ const expectedToolNames = [
   "eightdx_create_limit_order",
   "eightdx_get_limit_orders_by_maker",
   "eightdx_get_limit_order_history",
-  "eightdx_cancel_limit_order"
+  "eightdx_get_order_status",
+  "eightdx_build_explorer_link",
+  "eightdx_cancel_limit_order",
+  "eightdx_walletconnect_create_session",
+  "eightdx_walletconnect_get_session",
+  "eightdx_walletconnect_disconnect",
+  "eightdx_wallet_send_transaction",
+  "eightdx_local_signer_status",
+  "eightdx_local_sign_and_send_transaction"
 ];
 
 await access("dist/index.js");
@@ -134,6 +142,14 @@ try {
       sort: "desc"
     }
   });
+  const walletConnectSession = await client.callTool({
+    name: "eightdx_walletconnect_get_session",
+    arguments: {}
+  });
+  const localSignerStatus = await client.callTool({
+    name: "eightdx_local_signer_status",
+    arguments: {}
+  });
 
   process.stdout.write(
     `${JSON.stringify(
@@ -153,7 +169,9 @@ try {
           minReturnAmountOut: swapBody.minReturnAmountOut
         },
         ordersByMaker: ordersByMaker.content,
-        orderHistory: orderHistory.content
+        orderHistory: orderHistory.content,
+        walletConnectSession: walletConnectSession.content,
+        localSignerStatus: localSignerStatus.content
       },
       null,
       2

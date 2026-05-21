@@ -3,6 +3,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z, type ZodRawShape } from "zod";
 
 import type { Blockchain, EightDxClient, JsonObject } from "./types.js";
+import { createDisabledWalletExecution, type WalletExecution } from "./wallet-execution.js";
 
 type ToolDefinition = {
   description: string;
@@ -36,6 +37,10 @@ type WalletSession = {
   surface?: "terminal" | "telegram" | "other" | null | undefined;
   walletAddress: string;
   walletApp?: string | null | undefined;
+};
+
+type ToolOptions = {
+  walletExecution?: WalletExecution | undefined;
 };
 
 const addressSchema = (description: string) =>
@@ -100,8 +105,12 @@ const permitSwapBodySchema = z
   })
   .passthrough();
 
-export function createEightDxToolDefinitions(client: EightDxClient): ToolDefinition[] {
+export function createEightDxToolDefinitions(
+  client: EightDxClient,
+  options: ToolOptions = {}
+): ToolDefinition[] {
   let walletSession: WalletSession | null = null;
+  const walletExecution = options.walletExecution ?? createDisabledWalletExecution();
 
   return [
     {
@@ -243,14 +252,15 @@ export function createEightDxToolDefinitions(client: EightDxClient): ToolDefinit
           safety: signingSafetyNotice(),
           nextActions: [
             "Refresh this preview if it is older than 30 seconds before asking the user to confirm.",
-            "After user confirmation, call eightdx_create_swap with the quoted path, slippage, deadline, and destination wallet.",
-            "Display the returned transaction payload in the user's wallet for external signing."
+            "For WalletConnect-first execution, use the connected wallet as both sender and destination for a normal self-swap unless the user explicitly requested another recipient.",
+            "After the user explicitly confirms the quoted swap parameters, call eightdx_create_swap with the quoted path, slippage, deadline, fromAddress, and destination wallet.",
+            "Display the returned transaction payload, then call eightdx_wallet_send_transaction with confirmedByUser true so the connected wallet can request final approval."
           ],
           presentationHints: {
             telegram:
-              "Show the quote summary, route link, slippage, deadline, and a wallet-open action.",
+              "Show the quote summary, WalletConnect status, connected-wallet recipient, slippage, deadline, and a wallet confirmation action.",
             terminal:
-              "Print the quote summary, route link, and exact transaction fields before asking for confirmation."
+              "Print the quote summary, WalletConnect status, connected-wallet sender/recipient, and exact transaction fields before asking for confirmation. Show route/web wallet links only as fallback web handoff links."
           }
         });
       },
@@ -432,12 +442,84 @@ export function createEightDxToolDefinitions(client: EightDxClient): ToolDefinit
       },
       name: "eightdx_cancel_limit_order",
       title: "Cancel 8DX Limit Order"
+    },
+    {
+      description:
+        "Creates a WalletConnect session URI/deeplink so the user can connect a wallet. The wallet, not MCP, signs transaction requests.",
+      handler: async (input) =>
+        toJsonToolResult(
+          await walletExecution.walletConnect.createSession(parseWalletConnectCreateInput(input))
+        ),
+      inputSchema: {
+        blockchain: blockchainSchema
+      },
+      name: "eightdx_walletconnect_create_session",
+      title: "Create 8DX WalletConnect Session"
+    },
+    {
+      description: "Reads the current WalletConnect session and connected wallet account, if any.",
+      handler: async (input) =>
+        toJsonToolResult(
+          await walletExecution.walletConnect.getSession(parseWalletConnectSessionInput(input))
+        ),
+      inputSchema: {
+        waitMs: z
+          .number()
+          .int()
+          .nonnegative()
+          .max(60_000)
+          .optional()
+          .describe("Optional wait time for a pending WalletConnect approval.")
+      },
+      name: "eightdx_walletconnect_get_session",
+      title: "Get 8DX WalletConnect Session"
+    },
+    {
+      description: "Disconnects the current WalletConnect session, if one exists.",
+      handler: async () => toJsonToolResult(await walletExecution.walletConnect.disconnect()),
+      inputSchema: {},
+      name: "eightdx_walletconnect_disconnect",
+      title: "Disconnect 8DX WalletConnect Session"
+    },
+    {
+      description:
+        "Requests the connected wallet to sign and broadcast a prepared transaction via WalletConnect eth_sendTransaction. Requires explicit user confirmation.",
+      handler: async (input) =>
+        toJsonToolResult(
+          await walletExecution.walletConnect.sendTransaction(parseTransactionInput(input))
+        ),
+      inputSchema: transactionInputSchema(),
+      name: "eightdx_wallet_send_transaction",
+      title: "Send 8DX Wallet Transaction"
+    },
+    {
+      description:
+        "Shows whether the opt-in local signer is enabled. Local signing is disabled by default and requires explicit environment configuration.",
+      handler: async () => toJsonToolResult(walletExecution.localSigner.getStatus()),
+      inputSchema: {},
+      name: "eightdx_local_signer_status",
+      title: "Get 8DX Local Signer Status"
+    },
+    {
+      description:
+        "Signs and broadcasts a prepared transaction with the opt-in local signer. Requires EIGHTDX_ENABLE_LOCAL_SIGNER=true and explicit user confirmation.",
+      handler: async (input) =>
+        toJsonToolResult(
+          await walletExecution.localSigner.signAndSendTransaction(parseTransactionInput(input))
+        ),
+      inputSchema: transactionInputSchema(),
+      name: "eightdx_local_sign_and_send_transaction",
+      title: "Local Sign And Send 8DX Transaction"
     }
   ];
 }
 
-export function registerEightDxTools(server: McpServer, client: EightDxClient): void {
-  for (const tool of createEightDxToolDefinitions(client)) {
+export function registerEightDxTools(
+  server: McpServer,
+  client: EightDxClient,
+  options: ToolOptions = {}
+): void {
+  for (const tool of createEightDxToolDefinitions(client, options)) {
     server.registerTool(
       tool.name,
       {
@@ -607,6 +689,66 @@ function parseCancelOrderInput(input: Record<string, unknown>) {
     .parse(input);
 }
 
+function parseWalletConnectCreateInput(input: Record<string, unknown>) {
+  return z
+    .object({
+      blockchain: blockchainSchema
+    })
+    .parse(input);
+}
+
+function parseWalletConnectSessionInput(input: Record<string, unknown>) {
+  return z
+    .object({
+      waitMs: z.number().int().nonnegative().max(60_000).optional()
+    })
+    .parse(input);
+}
+
+function parseTransactionInput(input: Record<string, unknown>) {
+  const parsed = z
+    .object({
+      blockchain: blockchainSchema,
+      confirmedByUser: z.boolean(),
+      data: z.string().min(1),
+      fromAddress: z.string().min(1).nullable().optional(),
+      requestLabel: z.string().min(1).nullable().optional(),
+      to: z.string().min(1),
+      value: z.string().min(1)
+    })
+    .parse(input);
+
+  if (parsed.confirmedByUser !== true) {
+    throw new Error("confirmedByUser must be true before sending a transaction.");
+  }
+
+  return parsed;
+}
+
+function transactionInputSchema(): ZodRawShape {
+  return {
+    blockchain: blockchainSchema,
+    confirmedByUser: z
+      .boolean()
+      .describe("Must be true only after the user explicitly confirmed the prepared transaction."),
+    data: z.string().min(1).describe("Transaction calldata."),
+    fromAddress: z
+      .string()
+      .min(1)
+      .nullable()
+      .optional()
+      .describe("Optional sender wallet address."),
+    requestLabel: z
+      .string()
+      .min(1)
+      .nullable()
+      .optional()
+      .describe("Optional user-facing request label."),
+    to: z.string().min(1).describe("Transaction recipient contract address."),
+    value: z.string().min(1).describe("Native token value in wei as a decimal string.")
+  };
+}
+
 function parseOrderStatusInput(input: Record<string, unknown>) {
   return z
     .object({
@@ -627,7 +769,7 @@ function parseExplorerLinkInput(input: Record<string, unknown>) {
 }
 
 function signingSafetyNotice(): string {
-  return "8DX MCP never stores private keys, signs wallet messages, or broadcasts transactions. The user must review and sign externally in their wallet.";
+  return "8DX MCP never stores private keys. Transaction execution requires explicit user confirmation: WalletConnect asks the user's wallet to sign and broadcast, while the local signer works only when deliberately enabled with environment variables.";
 }
 
 function buildEightDxRouteLink(input: {
@@ -669,15 +811,15 @@ function buildWalletLinks(input: { routeUrl: string; walletApp?: string | null |
 
   return {
     instructions: [
+      "These are fallback web handoff links for when WalletConnect direct confirmation is unavailable or the user explicitly chooses the 8DX UI.",
       "Open the webUrl in a browser with your wallet extension, or open the MetaMask Mobile dapp URL on mobile.",
-      "The wallet or 8DX page must show the final transaction details; the user must review and confirm manually.",
-      "This MCP server does not connect the wallet, sign messages, or broadcast transactions."
+      "The wallet or 8DX page must show the final transaction details; the user must review and confirm manually."
     ],
     metamaskInstallUrl: "https://metamask.io/download/",
     metamaskMobileDappUrl: `https://metamask.app.link/dapp/${dappTarget}`,
     walletApp: input.walletApp ?? null,
     walletConnectNote:
-      "For other wallets, open webUrl in the wallet browser or use the wallet's WalletConnect flow in the 8DX web app.",
+      "Direct MCP wallet confirmation requires WalletConnect. Configure EIGHTDX_WALLETCONNECT_PROJECT_ID and use eightdx_walletconnect_create_session when the host can display a WalletConnect URI.",
     webUrl: routeUrl.toString()
   };
 }

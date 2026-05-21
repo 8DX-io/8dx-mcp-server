@@ -1,5 +1,8 @@
 # AI Trading Flow Design
 
+Note: this was the first non-custodial flow design. WalletConnect and opt-in local
+signer execution were added later in `2026-05-21-wallet-execution-design.md`.
+
 ## Scope
 
 Build the first iteration inside the existing 8DX MCP server. The server remains a
