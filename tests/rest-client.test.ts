@@ -37,6 +37,32 @@ describe("EightDxRestClient", () => {
     expect(calls[0]?.init?.method).toBe("GET");
   });
 
+  it("builds token search requests for agent symbol resolution", async () => {
+    const calls: Array<{ input: RequestInfo | URL; init: RequestInit | undefined }> = [];
+    const fetchImpl: typeof fetch = async (input, init) => {
+      calls.push({ input, init });
+      return createJsonResponse({ data: [] });
+    };
+    const client = new EightDxRestClient(
+      { apiBaseUrl: "https://api.example.test", requestTimeoutMs: 1000 },
+      fetchImpl
+    );
+
+    await client.searchTokens({
+      blockchain: "ethereum",
+      limit: 10,
+      offset: 0,
+      q: "btc",
+      sort: "asc"
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(String(calls[0]?.input)).toBe(
+      "https://api.example.test/api/tokens?limit=10&offset=0&blockchain=ethereum&q=btc&sort=asc"
+    );
+    expect(calls[0]?.init?.method).toBe("GET");
+  });
+
   it("sends the MCP source header on outgoing API requests", async () => {
     const calls: Array<{ input: RequestInfo | URL; init: RequestInit | undefined }> = [];
     const fetchImpl: typeof fetch = async (input, init) => {

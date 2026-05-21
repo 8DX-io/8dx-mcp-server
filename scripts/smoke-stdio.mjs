@@ -8,7 +8,13 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 
 const expectedToolNames = [
   "eightdx_health",
+  "eightdx_login_wallet",
+  "eightdx_get_wallet_session",
+  "eightdx_logout_wallet",
+  "eightdx_search_tokens",
   "eightdx_get_quote",
+  "eightdx_preview_market_swap",
+  "eightdx_get_wallet_links",
   "eightdx_create_swap",
   "eightdx_get_permit_address",
   "eightdx_get_permit_data",
@@ -57,6 +63,21 @@ try {
 
   if (missingToolNames.length > 0) {
     throw new Error(`Missing MCP tools: ${missingToolNames.join(", ")}`);
+  }
+
+  const prompts = await client.listPrompts();
+  const actualPromptNames = prompts.prompts.map((prompt) => prompt.name);
+  const expectedPromptNames = [
+    "eightdx_trading_agent",
+    "eightdx_market_swap_scenario",
+    "eightdx_limit_order_scenario"
+  ];
+  const missingPromptNames = expectedPromptNames.filter(
+    (promptName) => !actualPromptNames.includes(promptName)
+  );
+
+  if (missingPromptNames.length > 0) {
+    throw new Error(`Missing MCP prompts: ${missingPromptNames.join(", ")}`);
   }
 
   const health = await client.callTool({ name: "eightdx_health", arguments: {} });
@@ -119,6 +140,7 @@ try {
       {
         ok: true,
         toolCount: actualToolNames.length,
+        promptCount: actualPromptNames.length,
         health: health.content,
         ethereumPermitAddress: ethereumPermit.content,
         bscPermitAddress: bscPermit.content,

@@ -17,7 +17,8 @@ function createClientStub(): EightDxClient {
     getLimitOrdersByMaker: async () => ({ data: [] }),
     getPermitAddress: async () => ({ data: "0xpermit" }),
     getPermitData: async () => ({ alreadyApproved: false, alreadyPermit: false }),
-    getQuote: async () => ({ data: { totalAmountOut: "2" } })
+    getQuote: async () => ({ data: { totalAmountOut: "2" } }),
+    searchTokens: async (input) => ({ data: [{ address: "0xBtc", symbol: "WBTC" }], input })
   };
 }
 
@@ -104,6 +105,11 @@ describe("8DX MCP server integration", () => {
           expected: { connected: true, session: { walletAddress: "0xWallet" } }
         },
         {
+          arguments: { blockchain: "ethereum", q: "btc" },
+          name: "eightdx_search_tokens",
+          expected: { data: [{ address: "0xBtc", symbol: "WBTC" }] }
+        },
+        {
           arguments: {
             blockchain: "ethereum",
             addressTokenIn: "0xIn",
@@ -124,6 +130,13 @@ describe("8DX MCP server integration", () => {
           },
           name: "eightdx_preview_market_swap",
           expected: { refreshAfterSeconds: 30, selectedExecution: { slippageBps: 50 } }
+        },
+        {
+          arguments: { routeUrl: "https://8dx.io/swap?blockchain=ethereum" },
+          name: "eightdx_get_wallet_links",
+          expected: {
+            metamaskMobileDappUrl: "https://metamask.app.link/dapp/8dx.io/swap?blockchain=ethereum"
+          }
         },
         {
           arguments: {
@@ -213,6 +226,44 @@ describe("8DX MCP server integration", () => {
           expect(parsed).toEqual(testCase.expected);
         }
       }
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("exposes prompt scenarios that guide natural-language trading requests", async () => {
+    const server = createEightDxMcpServer({ client: createClientStub() });
+    const client = new Client({ name: "test-client", version: "0.1.0" });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+
+    try {
+      const prompts = await client.listPrompts();
+      expect(prompts.prompts.map((prompt) => prompt.name)).toEqual([
+        "eightdx_trading_agent",
+        "eightdx_market_swap_scenario",
+        "eightdx_limit_order_scenario"
+      ]);
+
+      const prompt = await client.getPrompt({
+        name: "eightdx_market_swap_scenario",
+        arguments: {
+          userRequest: "обменяй мне 1 биткоин по рынку",
+          surface: "telegram"
+        }
+      });
+
+      const text = prompt.messages
+        .map((message) => (message.content.type === "text" ? message.content.text : ""))
+        .join("\n");
+
+      expect(text).toContain("eightdx_get_wallet_session");
+      expect(text).toContain("eightdx_search_tokens");
+      expect(text).toContain("Ask a follow-up question");
+      expect(text).toContain("eightdx_preview_market_swap");
+      expect(text).toContain("do not sign");
     } finally {
       await client.close();
       await server.close();

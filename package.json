@@ -42,6 +42,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "prepublishOnly": "npm run lint && npm run typecheck && npm test && npm run build",
+    "smoke:agent": "node scripts/smoke-agent-prompts.mjs",
     "smoke:stdio": "node scripts/smoke-stdio.mjs",
     "start": "node dist/index.js",
     "test": "vitest run",

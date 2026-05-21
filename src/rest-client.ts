@@ -10,7 +10,8 @@ import type {
   PermitAddressInput,
   PermitDataInput,
   QuoteInput,
-  SwapInput
+  SwapInput,
+  TokenSearchInput
 } from "./types.js";
 import { SOURCE_HEADER_VALUE } from "./version.js";
 
@@ -57,6 +58,20 @@ export class EightDxRestClient implements EightDxClient {
         addressTokenOut: input.addressTokenOut,
         amountIn: input.amountIn,
         amountInWei: input.amountInWei
+      }
+    });
+  }
+
+  async searchTokens(input: TokenSearchInput): Promise<unknown> {
+    return this.request({
+      method: "GET",
+      path: "/api/tokens",
+      query: {
+        limit: input.limit,
+        offset: input.offset,
+        blockchain: input.blockchain,
+        q: input.q,
+        sort: input.sort
       }
     });
   }

@@ -177,6 +177,32 @@ export function createEightDxToolDefinitions(client: EightDxClient): ToolDefinit
     },
     {
       description:
+        "Searches 8DX token metadata so an AI agent can resolve user phrases like BTC, bitcoin, USDC, or a token name before quoting.",
+      handler: async (input) =>
+        toJsonToolResult(await client.searchTokens(parseTokenSearchInput(input))),
+      inputSchema: {
+        blockchain: blockchainSchema.optional(),
+        limit: z
+          .number()
+          .int()
+          .positive()
+          .max(50)
+          .default(10)
+          .describe("Maximum number of token results to return."),
+        offset: z
+          .number()
+          .int()
+          .nonnegative()
+          .default(0)
+          .describe("Number of token results to skip."),
+        q: z.string().min(1).optional().describe("Token symbol, name, or address search query."),
+        sort: z.enum(["asc", "desc"]).optional().describe("Optional sort order.")
+      },
+      name: "eightdx_search_tokens",
+      title: "Search 8DX Tokens"
+    },
+    {
+      description:
         "Gets an 8DX swap quote for a token pair and amount. This is a read-only operation.",
       handler: async (input) => toJsonToolResult(await client.getQuote(parseQuoteInput(input))),
       inputSchema: {
@@ -196,6 +222,8 @@ export function createEightDxToolDefinitions(client: EightDxClient): ToolDefinit
         const parsed = parseMarketSwapPreviewInput(input);
         const quote = await client.getQuote(parsed);
 
+        const routeLink = buildEightDxRouteLink(parsed);
+
         return toJsonToolResult({
           quote,
           refreshAfterSeconds: 30,
@@ -207,7 +235,11 @@ export function createEightDxToolDefinitions(client: EightDxClient): ToolDefinit
             dstAddress: parsed.dstAddress ?? walletSession?.walletAddress ?? null,
             session: walletSession
           },
-          routeLink: buildEightDxRouteLink(parsed),
+          routeLink,
+          walletLinks: buildWalletLinks({
+            routeUrl: routeLink.url,
+            walletApp: walletSession?.walletApp ?? null
+          }),
           safety: signingSafetyNotice(),
           nextActions: [
             "Refresh this preview if it is older than 30 seconds before asking the user to confirm.",
@@ -234,6 +266,26 @@ export function createEightDxToolDefinitions(client: EightDxClient): ToolDefinit
       },
       name: "eightdx_preview_market_swap",
       title: "Preview 8DX Market Swap"
+    },
+    {
+      description:
+        "Builds wallet handoff links for an 8DX route, including a MetaMask Mobile dapp deeplink and web fallback. This does not connect or sign by itself.",
+      handler: async (input) => toJsonToolResult(buildWalletLinks(parseWalletLinksInput(input))),
+      inputSchema: {
+        routeUrl: z
+          .string()
+          .url()
+          .default("https://8dx.io/swap")
+          .describe("8DX route or swap page URL to open in a wallet browser."),
+        walletApp: z
+          .string()
+          .min(1)
+          .nullable()
+          .optional()
+          .describe("Optional preferred wallet app name.")
+      },
+      name: "eightdx_get_wallet_links",
+      title: "Get 8DX Wallet Links"
     },
     {
       description:
@@ -436,6 +488,18 @@ function parseWalletLoginInput(input: Record<string, unknown>): Omit<WalletSessi
     .parse(input);
 }
 
+function parseTokenSearchInput(input: Record<string, unknown>) {
+  return z
+    .object({
+      blockchain: blockchainSchema.optional(),
+      limit: z.number().int().positive().max(50).default(10),
+      offset: z.number().int().nonnegative().default(0),
+      q: z.string().min(1).optional(),
+      sort: z.enum(["asc", "desc"]).optional()
+    })
+    .parse(input);
+}
+
 function parseMarketSwapPreviewInput(input: Record<string, unknown>) {
   return z
     .object({
@@ -451,6 +515,15 @@ function parseMarketSwapPreviewInput(input: Record<string, unknown>) {
     .refine((value) => value.amountIn !== undefined || value.amountInWei !== undefined, {
       message: "Either amountIn or amountInWei must be provided.",
       path: ["amountIn"]
+    })
+    .parse(input);
+}
+
+function parseWalletLinksInput(input: Record<string, unknown>) {
+  return z
+    .object({
+      routeUrl: z.string().url().default("https://8dx.io/swap"),
+      walletApp: z.string().min(1).nullable().optional()
     })
     .parse(input);
 }
@@ -580,6 +653,32 @@ function buildEightDxRouteLink(input: {
   return {
     note: "Candidate 8DX web route link for clients that support pair prefill parameters.",
     url: url.toString()
+  };
+}
+
+function buildWalletLinks(input: { routeUrl: string; walletApp?: string | null | undefined }): {
+  instructions: string[];
+  metamaskInstallUrl: string;
+  metamaskMobileDappUrl: string;
+  walletApp: string | null;
+  walletConnectNote: string;
+  webUrl: string;
+} {
+  const routeUrl = new URL(input.routeUrl);
+  const dappTarget = `${routeUrl.host}${routeUrl.pathname}${routeUrl.search}${routeUrl.hash}`;
+
+  return {
+    instructions: [
+      "Open the webUrl in a browser with your wallet extension, or open the MetaMask Mobile dapp URL on mobile.",
+      "The wallet or 8DX page must show the final transaction details; the user must review and confirm manually.",
+      "This MCP server does not connect the wallet, sign messages, or broadcast transactions."
+    ],
+    metamaskInstallUrl: "https://metamask.io/download/",
+    metamaskMobileDappUrl: `https://metamask.app.link/dapp/${dappTarget}`,
+    walletApp: input.walletApp ?? null,
+    walletConnectNote:
+      "For other wallets, open webUrl in the wallet browser or use the wallet's WalletConnect flow in the 8DX web app.",
+    webUrl: routeUrl.toString()
   };
 }
 

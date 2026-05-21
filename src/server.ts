@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { loadConfig } from "./config.js";
+import { registerEightDxPrompts } from "./prompts.js";
 import { EightDxRestClient } from "./rest-client.js";
 import { registerEightDxTools } from "./tools.js";
 import type { EightDxClient, EightDxConfig } from "./types.js";
@@ -17,6 +18,7 @@ export function createEightDxMcpServer(options?: {
   const client = options?.client ?? new EightDxRestClient(options?.config ?? loadConfig());
 
   registerEightDxTools(server, client);
+  registerEightDxPrompts(server);
 
   return server;
 }

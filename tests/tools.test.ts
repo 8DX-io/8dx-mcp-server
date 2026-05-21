@@ -15,7 +15,11 @@ function createClientStub(): EightDxClient {
     getLimitOrdersByMaker: async (input) => ({ data: [], input }),
     getPermitAddress: async (input) => ({ data: `permit-${input.blockchain}` }),
     getPermitData: async (input) => ({ alreadyApproved: false, alreadyPermit: false, input }),
-    getQuote: async (input) => ({ data: { totalAmountOut: "2", input } })
+    getQuote: async (input) => ({ data: { totalAmountOut: "2", input } }),
+    searchTokens: async (input) => ({
+      data: [{ address: "0xBtc", blockchain: "ethereum", symbol: "WBTC" }],
+      input
+    })
   };
 }
 
@@ -28,8 +32,10 @@ describe("createEightDxToolDefinitions", () => {
       "eightdx_login_wallet",
       "eightdx_get_wallet_session",
       "eightdx_logout_wallet",
+      "eightdx_search_tokens",
       "eightdx_get_quote",
       "eightdx_preview_market_swap",
+      "eightdx_get_wallet_links",
       "eightdx_create_swap",
       "eightdx_get_permit_address",
       "eightdx_get_permit_data",
@@ -125,6 +131,35 @@ describe("createEightDxToolDefinitions", () => {
     });
   });
 
+  it("searches tokens so agents can resolve user phrases like bitcoin", async () => {
+    const tokenTool = createEightDxToolDefinitions(createClientStub()).find(
+      (tool) => tool.name === "eightdx_search_tokens"
+    );
+
+    const result = parseToolJson(
+      (await tokenTool?.handler({
+        blockchain: "ethereum",
+        q: "btc"
+      })) as CallToolResult
+    );
+
+    expect(result).toMatchObject({
+      data: [
+        {
+          address: "0xBtc",
+          blockchain: "ethereum",
+          symbol: "WBTC"
+        }
+      ],
+      input: {
+        blockchain: "ethereum",
+        limit: 10,
+        offset: 0,
+        q: "btc"
+      }
+    });
+  });
+
   it("previews market swaps with quote refresh metadata and an 8DX route link", async () => {
     const previewTool = createEightDxToolDefinitions(createClientStub()).find(
       (tool) => tool.name === "eightdx_preview_market_swap"
@@ -158,6 +193,12 @@ describe("createEightDxToolDefinitions", () => {
       },
       wallet: {
         dstAddress: "0xWallet"
+      },
+      walletLinks: {
+        webUrl:
+          "https://8dx.io/swap?blockchain=bsc&addressTokenIn=0xIn&addressTokenOut=0xOut&amountInWei=1000000000000000000",
+        metamaskMobileDappUrl:
+          "https://metamask.app.link/dapp/8dx.io/swap?blockchain=bsc&addressTokenIn=0xIn&addressTokenOut=0xOut&amountInWei=1000000000000000000"
       }
     });
 
@@ -165,6 +206,29 @@ describe("createEightDxToolDefinitions", () => {
     expect(routeUrl.origin).toBe("https://8dx.io");
     expect(routeUrl.searchParams.get("blockchain")).toBe("bsc");
     expect(routeUrl.searchParams.get("amountInWei")).toBe("1000000000000000000");
+  });
+
+  it("builds wallet handoff links for MetaMask and web fallback", async () => {
+    const linksTool = createEightDxToolDefinitions(createClientStub()).find(
+      (tool) => tool.name === "eightdx_get_wallet_links"
+    );
+
+    const result = parseToolJson(
+      (await linksTool?.handler({
+        routeUrl: "https://8dx.io/swap?blockchain=ethereum",
+        walletApp: "MetaMask"
+      })) as CallToolResult
+    );
+
+    expect(result).toMatchObject({
+      walletApp: "MetaMask",
+      webUrl: "https://8dx.io/swap?blockchain=ethereum",
+      metamaskMobileDappUrl: "https://metamask.app.link/dapp/8dx.io/swap?blockchain=ethereum",
+      instructions: expect.arrayContaining([
+        expect.stringContaining("Open the webUrl"),
+        expect.stringContaining("MetaMask Mobile")
+      ])
+    });
   });
 
   it("returns order status with scanner links for filled transaction hashes", async () => {

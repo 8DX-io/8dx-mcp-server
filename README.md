@@ -22,6 +22,12 @@ flows. The session is local in memory and stores only public wallet metadata.
 | `eightdx_get_wallet_session` | Reads the current local wallet session, if any.                                                                 |
 | `eightdx_logout_wallet`      | Clears the local wallet session. This does not revoke token approvals or cancel on-chain permissions.           |
 
+### Token discovery
+
+| Tool                                                    | Description                                                                                              |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `eightdx_search_tokens`<br><sub>`GET /api/tokens`</sub> | Searches 8DX token metadata so agents can resolve prompts like "BTC", "bitcoin", "USDC", or token names. |
+
 ### Quotes and swaps
 
 | Tool                                                                      | Description                                                                                                                |
@@ -29,6 +35,7 @@ flows. The session is local in memory and stores only public wallet metadata.
 | `eightdx_health`<br><sub>`GET /api/health`</sub>                          | Checks whether the 8DX API is reachable and responding normally.                                                           |
 | `eightdx_get_quote`<br><sub>`GET /api/{blockchain}/quote`</sub>           | Performs a read-only quote lookup for a token pair and `amountIn` or `amountInWei`.                                        |
 | `eightdx_preview_market_swap`<br><sub>`GET /api/{blockchain}/quote`</sub> | Returns quote data plus a 30-second refresh hint, selected slippage/deadline, route-link metadata, and signing guidance.   |
+| `eightdx_get_wallet_links`                                                | Builds an 8DX web URL and MetaMask Mobile dapp deeplink for wallet handoff.                                                |
 | `eightdx_create_swap`<br><sub>`POST /api/{blockchain}/swap`</sub>         | Returns swap calldata for a previously quoted path. The server does not sign, custody funds, or broadcast the transaction. |
 
 ### Permit helpers
@@ -54,20 +61,44 @@ flows. The session is local in memory and stores only public wallet metadata.
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `eightdx_build_explorer_link` | Builds Etherscan, BscScan, or Arbiscan links for transactions, addresses, and tokens. Explains off-chain order hashes. |
 
+## Prompts
+
+The server also exposes MCP prompt templates that help host AI agents turn natural
+language into safe tool sequences:
+
+| Prompt                         | Purpose                                                                        |
+| ------------------------------ | ------------------------------------------------------------------------------ |
+| `eightdx_trading_agent`        | General operating instructions for safe 8DX trading flows.                     |
+| `eightdx_market_swap_scenario` | Checklist for prompts like "обменяй мне 1 биткоин по рынку".                   |
+| `eightdx_limit_order_scenario` | Checklist for limit orders, signed order payloads, status, fills, and history. |
+
 ## AI trading flow
 
 Recommended market-swap flow for an AI client:
 
-1. Call `eightdx_login_wallet` after the user provides a public wallet address.
-2. Call `eightdx_preview_market_swap` and show the quote, route link, slippage, deadline,
-   and `refreshAfterSeconds: 30`.
-3. Refresh the preview if the user waits longer than 30 seconds before confirming.
-4. Call `eightdx_create_swap` with the confirmed quoted path, slippage, deadline, and
-   destination wallet.
-5. Show the returned `to`, `data`, `value`, and approval information to the user's wallet
-   for external signing.
-6. After the user provides a transaction hash, call `eightdx_build_explorer_link` so the
-   terminal or Telegram bot can display a scanner link.
+1. Call `eightdx_get_wallet_session`. If no wallet is connected, ask for a public
+   wallet address, chain, and wallet app, then call `eightdx_login_wallet`.
+2. If the user names tokens in natural language, call `eightdx_search_tokens`. If
+   results are ambiguous, ask which token/address to use before quoting.
+3. If the request is missing the output token, chain, amount, slippage, or deadline,
+   ask a follow-up question. For example, "обменяй мне 1 биткоин по рынку" is missing
+   the token the user wants to receive.
+4. Call `eightdx_preview_market_swap` and show the quote, route link, wallet links,
+   slippage, deadline, and `refreshAfterSeconds: 30`.
+5. Refresh the preview if the user waits longer than 30 seconds before confirming.
+6. If the user wants the 8DX UI, show `routeLink.url`, `walletLinks.webUrl`, or
+   `walletLinks.metamaskMobileDappUrl` so they can finish in a wallet-enabled browser.
+7. If the user wants to continue through the AI flow, ask for explicit confirmation,
+   then call `eightdx_create_swap` with the confirmed quoted path, slippage, deadline,
+   and destination wallet.
+8. Show the returned `to`, `data`, `value`, and approval information to the user's
+   wallet for external signing.
+9. After the user provides a transaction hash, call `eightdx_build_explorer_link` so
+   the terminal or Telegram bot can display a scanner link.
+
+The MCP server can prepare the quote, calldata, route links, and status links. It cannot
+fully complete a swap alone, because signing and broadcasting must happen in the user's
+wallet or in a separate wallet-integration layer controlled by the user.
 
 Recommended limit-order flow:
 
@@ -257,6 +288,7 @@ npm test
 npm run typecheck
 npm run build
 npm run smoke:stdio
+npm run smoke:agent
 npm run dev
 ```
 

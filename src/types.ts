@@ -16,6 +16,14 @@ export type QuoteInput = {
   amountInWei?: string | undefined;
 };
 
+export type TokenSearchInput = {
+  blockchain?: Blockchain | undefined;
+  limit: number;
+  offset: number;
+  q?: string | undefined;
+  sort?: "asc" | "desc" | undefined;
+};
+
 export type SwapInput = {
   blockchain: Blockchain;
   deadline?: number | null | undefined;
@@ -87,4 +95,5 @@ export type EightDxClient = {
   getPermitAddress(input: PermitAddressInput): Promise<unknown>;
   getPermitData(input: PermitDataInput): Promise<unknown>;
   getQuote(input: QuoteInput): Promise<unknown>;
+  searchTokens(input: TokenSearchInput): Promise<unknown>;
 };
