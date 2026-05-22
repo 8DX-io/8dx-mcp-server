@@ -52,6 +52,7 @@ try {
     "eightdx_wallet_send_transaction",
     "fallback web handoff",
     "eightdx_local_signer_status",
+    "pre-authorizes refreshed quotes",
     "explicit confirmation"
   ]) {
     if (!promptText.includes(requiredFragment)) {
@@ -196,6 +197,7 @@ try {
           resolvesTokens: true,
           asksClarifyingQuestionWhenOutputTokenMissing: true,
           previewsBeforeSwap: true,
+          supportsPreauthorizedQuoteRefresh: true,
           instructsWalletConnectExecution: true,
           keepsLocalSignerDisabledByDefault: true,
           usesWebLinksAsFallback: true

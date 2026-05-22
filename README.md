@@ -127,9 +127,12 @@ Recommended WalletConnect-first market-swap flow for an AI client:
    prefilled 8DX web page for users who prefer the 8DX UI; direct MCP execution
    can continue without opening that page.
 9. Refresh the preview if the user waits longer than 30 seconds before confirming.
-10. Ask for explicit confirmation of the fresh quote and swap parameters. Then call
-   `eightdx_create_swap` with the confirmed quoted path, slippage, deadline,
-   `fromAddress`, and `dstAddress`.
+10. Ask for explicit confirmation of the fresh quote and swap parameters. If the
+   user explicitly pre-authorizes refreshed quotes for the same swap intent, the
+   agent may refresh stale quotes and continue without another chat
+   confirmation; the wallet UI must still require final transaction approval.
+   Then call `eightdx_create_swap` with the confirmed quoted path, slippage,
+   deadline, `fromAddress`, and `dstAddress`.
 11. Show the returned `to`, `data`, `value`, chain, sender, and recipient. Then
     call `eightdx_wallet_send_transaction` with `confirmedByUser: true`; the
     connected wallet signs and broadcasts only after the user approves in the

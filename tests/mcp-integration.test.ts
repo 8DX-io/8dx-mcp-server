@@ -340,6 +340,7 @@ describe("8DX MCP server integration", () => {
         "Ask a follow-up question",
         "eightdx_preview_market_swap",
         "explicit confirmation",
+        "pre-authorizes refreshed quotes",
         "eightdx_create_swap",
         "eightdx_wallet_send_transaction",
         "fallback",
