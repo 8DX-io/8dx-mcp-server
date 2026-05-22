@@ -97,7 +97,8 @@ Recommended WalletConnect-first market-swap flow for an AI client:
    results are ambiguous, ask which token/address to use before quoting.
 2. If the request is missing the output token, amount, slippage, or deadline, ask
    a follow-up question. For example, "обменяй мне 1 биткоин по рынку" is missing
-   the token the user wants to receive.
+   the token the user wants to receive. Market swap deadlines are relative
+   seconds from now; use `600` for 10 minutes, not a Unix timestamp.
 3. Call `eightdx_get_wallet_session` and `eightdx_walletconnect_get_session`.
 4. Call `eightdx_preview_market_swap` as soon as the chain, tokens, amount,
    slippage, and deadline are known. If no wallet is connected yet, omit

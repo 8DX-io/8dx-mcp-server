@@ -31,6 +31,13 @@ const explorerValueTypeSchema = z
   .enum(["transaction", "address", "token", "order"])
   .describe("Type of blockchain or 8DX identifier to link.");
 
+const marketSwapDeadlineSchema = z
+  .number()
+  .int()
+  .nonnegative()
+  .max(3600)
+  .describe("Market swap deadline in relative seconds from now. Use 600 for 10 minutes.");
+
 type WalletSession = {
   blockchain: Blockchain;
   connectedAt: string;
@@ -270,7 +277,7 @@ export function createEightDxToolDefinitions(
         addressTokenOut: addressSchema("Token address or native-token identifier to buy."),
         amountIn: amountSchema("Normalized input token amount to quote.").optional(),
         amountInWei: amountSchema("Smallest-unit input token amount to quote.").optional(),
-        deadline: z.number().int().nonnegative().nullable().optional(),
+        deadline: marketSwapDeadlineSchema.nullable().optional(),
         dstAddress: addressSchema("Optional destination wallet address.").nullable().optional(),
         slippageBps: z.number().int().nonnegative().nullable().optional()
       },
@@ -303,7 +310,7 @@ export function createEightDxToolDefinitions(
       handler: async (input) => toJsonToolResult(await client.createSwap(parseSwapInput(input))),
       inputSchema: {
         blockchain: blockchainSchema,
-        deadline: z.number().nullable().optional().describe("Optional swap deadline."),
+        deadline: marketSwapDeadlineSchema.nullable().optional(),
         dstAddress: addressSchema("Destination wallet address for the swap result."),
         fromAddress: addressSchema("Optional sender wallet address.").nullable().optional(),
         path: inputPathSchema,
@@ -590,7 +597,7 @@ function parseMarketSwapPreviewInput(input: Record<string, unknown>) {
       addressTokenOut: z.string().min(1),
       amountIn: z.string().min(1).optional(),
       amountInWei: z.string().min(1).optional(),
-      deadline: z.number().int().nonnegative().nullable().optional(),
+      deadline: marketSwapDeadlineSchema.nullable().optional(),
       dstAddress: z.string().min(1).nullable().optional(),
       slippageBps: z.number().int().nonnegative().nullable().optional()
     })
@@ -614,7 +621,7 @@ function parseSwapInput(input: Record<string, unknown>) {
   return z
     .object({
       blockchain: blockchainSchema,
-      deadline: z.number().nullable().optional(),
+      deadline: marketSwapDeadlineSchema.nullable().optional(),
       dstAddress: z.string().min(1),
       fromAddress: z.string().min(1).nullable().optional(),
       path: inputPathSchema,

@@ -268,6 +268,43 @@ describe("createEightDxToolDefinitions", () => {
     expect(routeUrl.searchParams.get("amountInWei")).toBe("1000000000000000000");
   });
 
+  it("rejects market swap deadlines that are Unix timestamps instead of relative seconds", async () => {
+    const tools = createEightDxToolDefinitions(createClientStub());
+    const previewTool = tools.find((tool) => tool.name === "eightdx_preview_market_swap");
+    const swapTool = tools.find((tool) => tool.name === "eightdx_create_swap");
+    const path = {
+      addressTokenIn: "0xIn",
+      addressTokenOut: "0xOut",
+      amountIn: "100",
+      steps: [],
+      totalAmountOut: "200",
+      totalPriceImpact: 0
+    };
+
+    await expect(
+      previewTool?.handler({
+        blockchain: "ethereum",
+        addressTokenIn: "0xIn",
+        addressTokenOut: "0xOut",
+        amountIn: "100",
+        deadline: 1_779_454_913
+      })
+    ).rejects.toMatchObject({
+      issues: [expect.objectContaining({ code: "too_big", path: ["deadline"] })]
+    });
+
+    await expect(
+      swapTool?.handler({
+        blockchain: "ethereum",
+        deadline: 1_779_454_913,
+        dstAddress: "0xWallet",
+        path
+      })
+    ).rejects.toMatchObject({
+      issues: [expect.objectContaining({ code: "too_big", path: ["deadline"] })]
+    });
+  });
+
   it("builds wallet handoff links for MetaMask and web fallback", async () => {
     const linksTool = createEightDxToolDefinitions(createClientStub()).find(
       (tool) => tool.name === "eightdx_get_wallet_links"
