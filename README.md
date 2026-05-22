@@ -31,7 +31,7 @@ The local signer is disabled unless environment variables explicitly enable it.
 
 | Tool                                      | Description                                                                                                |
 | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `eightdx_walletconnect_create_session`    | Creates a WalletConnect URI and MetaMask deeplink so the user can connect a wallet.                        |
+| `eightdx_walletconnect_create_session`    | Creates a WalletConnect session and returns QR/raw URI, copied URI, and mobile direct-connection options.  |
 | `eightdx_walletconnect_get_session`       | Reads the current WalletConnect session and connected account, optionally waiting for a pending approval.  |
 | `eightdx_walletconnect_disconnect`        | Disconnects the active WalletConnect session.                                                              |
 | `eightdx_wallet_send_transaction`         | Requests `eth_sendTransaction` through the connected wallet. Requires `confirmedByUser: true`.             |
@@ -99,35 +99,44 @@ Recommended WalletConnect-first market-swap flow for an AI client:
    a follow-up question. For example, "обменяй мне 1 биткоин по рынку" is missing
    the token the user wants to receive.
 3. Call `eightdx_get_wallet_session` and `eightdx_walletconnect_get_session`.
-4. If WalletConnect is unavailable in the current host, explain that direct
+4. Call `eightdx_preview_market_swap` as soon as the chain, tokens, amount,
+   slippage, and deadline are known. If no wallet is connected yet, omit
+   `dstAddress`. Show the quote and `routeLink.url` as an optional prefilled 8DX
+   web page for users who prefer the 8DX UI; direct MCP execution can continue
+   without opening that page.
+5. If WalletConnect is unavailable in the current host, explain that direct
    wallet confirmation is unavailable there. Call
    `eightdx_preview_market_swap` to generate a fresh quote and route metadata,
    then offer `routeLink.url`, `walletLinks.webUrl`, or
    `walletLinks.metamaskMobileDappUrl` only as fallback web handoff links. Do not
    call `eightdx_create_swap` or `eightdx_wallet_send_transaction` in this
    fallback branch.
-5. If WalletConnect is available but not connected, call
-   `eightdx_walletconnect_create_session` for the selected chain and show the
-   URI/deeplink. Ask the user to connect in their wallet, then call
+6. If WalletConnect is available but not connected and the user wants direct MCP
+   execution, call
+   `eightdx_walletconnect_create_session` for the selected chain and show all
+   returned `connectionOptions`, including WalletConnect QR, copied URI, and
+   mobile deeplink choices. Ask the user to connect in their wallet, then call
    `eightdx_walletconnect_get_session` again.
-6. After WalletConnect connects, call `eightdx_login_wallet` with the connected
+7. After WalletConnect connects, call `eightdx_login_wallet` with the connected
    public account, chain, surface, and wallet app when known. For normal
    self-swaps, this connected account is both `fromAddress` and `dstAddress`.
-7. Call `eightdx_preview_market_swap` with `dstAddress` set to the connected
+8. Refresh the quote with `eightdx_preview_market_swap` and `dstAddress` set to the connected
    wallet and show the quote, route, price impact, slippage, deadline, and
-   `refreshAfterSeconds: 30`.
-8. Refresh the preview if the user waits longer than 30 seconds before confirming.
-9. Ask for explicit confirmation of the fresh quote and swap parameters. Then call
+   `refreshAfterSeconds: 30`. Also show `routeLink.url` as an optional
+   prefilled 8DX web page for users who prefer the 8DX UI; direct MCP execution
+   can continue without opening that page.
+9. Refresh the preview if the user waits longer than 30 seconds before confirming.
+10. Ask for explicit confirmation of the fresh quote and swap parameters. Then call
    `eightdx_create_swap` with the confirmed quoted path, slippage, deadline,
    `fromAddress`, and `dstAddress`.
-10. Show the returned `to`, `data`, `value`, chain, sender, and recipient. Then
+11. Show the returned `to`, `data`, `value`, chain, sender, and recipient. Then
     call `eightdx_wallet_send_transaction` with `confirmedByUser: true`; the
     connected wallet signs and broadcasts only after the user approves in the
     wallet UI.
-11. Use `eightdx_local_sign_and_send_transaction` only when
+12. Use `eightdx_local_sign_and_send_transaction` only when
     `eightdx_local_signer_status` says enabled and the user explicitly asked the
     MCP server to sign and send.
-12. After a transaction hash is returned, call `eightdx_build_explorer_link` so
+13. After a transaction hash is returned, call `eightdx_build_explorer_link` so
     the terminal or Telegram bot can display a scanner link.
 
 Recommended limit-order flow:

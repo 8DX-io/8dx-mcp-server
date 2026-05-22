@@ -135,6 +135,9 @@ function createWalletConnectExecution(config: WalletConnectConfig): WalletConnec
       return {
         accounts: [],
         available: true,
+        connectionOptions: buildWalletConnectConnectionOptions({
+          uri: response.uri ?? null
+        }),
         deeplinks: {
           metamask: response.uri ? buildMetaMaskWalletConnectLink(response.uri) : null
         },
@@ -359,6 +362,51 @@ function toError(error: unknown): Error {
 
 function buildMetaMaskWalletConnectLink(uri: string): string {
   return `https://metamask.app.link/wc?uri=${encodeURIComponent(uri)}`;
+}
+
+function buildWalletConnectConnectionOptions(input: {
+  uri: string | null;
+}): {
+  options: Array<{
+    description: string;
+    id: string;
+    label: string;
+    type: string;
+    uri?: string | null | undefined;
+    url?: string | null | undefined;
+  }>;
+  recommendedOrder: string[];
+} {
+  const metamaskMobileUrl = input.uri ? buildMetaMaskWalletConnectLink(input.uri) : null;
+
+  return {
+    options: [
+      {
+        description:
+          "Render this WalletConnect URI as a QR code for wallets that scan WalletConnect requests.",
+        id: "walletconnect-qr",
+        label: "WalletConnect QR",
+        type: "qr",
+        uri: input.uri
+      },
+      {
+        description:
+          "Copy this WalletConnect URI into desktop wallets that support connecting by WalletConnect URI.",
+        id: "copy-uri",
+        label: "Copy WalletConnect URI",
+        type: "copy-uri",
+        uri: input.uri
+      },
+      {
+        description: "Open MetaMask Mobile directly with the WalletConnect request.",
+        id: "metamask-mobile",
+        label: "MetaMask Mobile",
+        type: "mobile-deeplink",
+        url: metamaskMobileUrl
+      }
+    ],
+    recommendedOrder: ["walletconnect-qr", "copy-uri", "metamask-mobile"]
+  };
 }
 
 async function settleWithin<T>(promise: Promise<T>, waitMs: number): Promise<T | null> {

@@ -35,11 +35,14 @@ try {
     .join("\n");
 
   for (const requiredFragment of [
-    "WalletConnect-first",
+    "Quote-first",
+    "direct MCP WalletConnect",
     "enabled by default",
     "eightdx_get_wallet_session",
     "eightdx_walletconnect_get_session",
     "eightdx_walletconnect_create_session",
+    "connectionOptions",
+    "routeLink.url as the optional prefilled 8DX web page",
     "connected WalletConnect account as the wallet session",
     "fromAddress and dstAddress to the connected wallet",
     "eightdx_search_tokens",

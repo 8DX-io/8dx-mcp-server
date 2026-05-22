@@ -58,6 +58,15 @@ describe("createWalletExecution", () => {
 
     const result = (await execution.walletConnect.createSession({ blockchain: "ethereum" })) as {
       available: boolean;
+      connectionOptions: {
+        options: Array<{
+          id: string;
+          type: string;
+          uri?: string | null;
+          url?: string | null;
+        }>;
+        recommendedOrder: string[];
+      };
       deeplinks: { metamask: string };
       status: string;
       uri: string;
@@ -85,6 +94,33 @@ describe("createWalletExecution", () => {
       uri: "wc:test@2?relay-protocol=irn&symKey=key"
     });
     expect(result.deeplinks.metamask).toContain("https://metamask.app.link/wc?uri=");
+    expect(result.connectionOptions.recommendedOrder).toEqual([
+      "walletconnect-qr",
+      "copy-uri",
+      "metamask-mobile"
+    ]);
+    expect(result.connectionOptions.options).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "walletconnect-qr",
+          type: "qr",
+          uri: "wc:test@2?relay-protocol=irn&symKey=key"
+        }),
+        expect.objectContaining({
+          id: "copy-uri",
+          type: "copy-uri",
+          uri: "wc:test@2?relay-protocol=irn&symKey=key"
+        }),
+        expect.objectContaining({
+          id: "metamask-mobile",
+          type: "mobile-deeplink",
+          url: expect.stringContaining("https://metamask.app.link/wc?uri=")
+        })
+      ])
+    );
+    expect(result.connectionOptions.options).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "browser-extension" })])
+    );
   });
 
   it("keeps WalletConnect session reads stable when approval rejects", async () => {

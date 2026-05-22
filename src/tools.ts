@@ -445,7 +445,7 @@ export function createEightDxToolDefinitions(
     },
     {
       description:
-        "Creates a WalletConnect session URI/deeplink so the user can connect a wallet. The wallet, not MCP, signs transaction requests.",
+        "Creates a WalletConnect session and returns direct MCP connection options: QR/raw URI, copied URI, and mobile deeplink. The wallet, not MCP, signs transaction requests.",
       handler: async (input) =>
         toJsonToolResult(
           await walletExecution.walletConnect.createSession(parseWalletConnectCreateInput(input))
@@ -819,7 +819,7 @@ function buildWalletLinks(input: { routeUrl: string; walletApp?: string | null |
     metamaskMobileDappUrl: `https://metamask.app.link/dapp/${dappTarget}`,
     walletApp: input.walletApp ?? null,
     walletConnectNote:
-      "Direct MCP wallet confirmation uses WalletConnect, which is enabled by default in the packaged server. Use eightdx_walletconnect_create_session when the host can display a WalletConnect URI; use these web links only as fallback handoff links.",
+      "Direct MCP wallet confirmation uses WalletConnect, which is enabled by default in the packaged server. Use eightdx_walletconnect_create_session and show all returned connectionOptions; use these web links only as fallback handoff links.",
     webUrl: routeUrl.toString()
   };
 }
