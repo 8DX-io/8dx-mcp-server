@@ -89,7 +89,8 @@ function createWalletConnectExecution(config: WalletConnectConfig): WalletConnec
 
   const projectId = config.projectId;
   let clientPromise: Promise<Awaited<ReturnType<typeof SignClient.init>>> | null = null;
-  let approvalPromise: Promise<WalletConnectSession> | null = null;
+  let approvalPromise: Promise<WalletConnectSession | null> | null = null;
+  let approvalError: Error | null = null;
   let activeSession: WalletConnectSession | null = null;
 
   const getClient = () => {
@@ -116,10 +117,20 @@ function createWalletConnectExecution(config: WalletConnectConfig): WalletConnec
         }
       });
 
-      approvalPromise = response.approval().then((session) => {
-        activeSession = session;
-        return session;
-      });
+      approvalError = null;
+      approvalPromise = response
+        .approval()
+        .then((session) => {
+          activeSession = session;
+          approvalPromise = null;
+          return session;
+        })
+        .catch((error: unknown) => {
+          approvalError = toError(error);
+          approvalPromise = null;
+          activeSession = null;
+          return null;
+        });
 
       return {
         accounts: [],
@@ -143,6 +154,7 @@ function createWalletConnectExecution(config: WalletConnectConfig): WalletConnec
 
       activeSession = null;
       approvalPromise = null;
+      approvalError = null;
 
       return { connected: false, status: "disconnected" };
     },
@@ -156,6 +168,7 @@ function createWalletConnectExecution(config: WalletConnectConfig): WalletConnec
         return {
           available: true,
           connected: false,
+          ...(approvalError ? { reason: approvalError.message } : {}),
           status: approvalPromise ? "pending" : "disconnected"
         };
       }
@@ -338,6 +351,10 @@ function toViemChain(blockchain: Blockchain) {
 
 function toRpcQuantity(value: string): string {
   return `0x${BigInt(value).toString(16)}`;
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
 }
 
 function buildMetaMaskWalletConnectLink(uri: string): string {

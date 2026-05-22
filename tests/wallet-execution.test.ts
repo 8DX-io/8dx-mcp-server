@@ -3,14 +3,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EightDxConfig } from "../src/types.js";
 
 const walletConnectMocks = vi.hoisted(() => {
+  let approval = () => new Promise<never>(() => {});
   const connect = vi.fn(async () => ({
-    approval: () => new Promise<never>(() => {}),
+    approval,
     uri: "wc:test@2?relay-protocol=irn&symKey=key"
   }));
   const disconnect = vi.fn();
   const init = vi.fn(async () => ({ connect, disconnect, request: vi.fn() }));
+  const setApproval = (nextApproval: typeof approval) => {
+    approval = nextApproval;
+  };
 
-  return { connect, disconnect, init };
+  return { connect, disconnect, init, setApproval };
 });
 
 vi.mock("@walletconnect/sign-client", () => ({
@@ -46,6 +50,7 @@ describe("createWalletExecution", () => {
     walletConnectMocks.connect.mockClear();
     walletConnectMocks.disconnect.mockClear();
     walletConnectMocks.init.mockClear();
+    walletConnectMocks.setApproval(() => new Promise<never>(() => {}));
   });
 
   it("creates WalletConnect session URIs with the SignClient named export", async () => {
@@ -80,5 +85,19 @@ describe("createWalletExecution", () => {
       uri: "wc:test@2?relay-protocol=irn&symKey=key"
     });
     expect(result.deeplinks.metamask).toContain("https://metamask.app.link/wc?uri=");
+  });
+
+  it("keeps WalletConnect session reads stable when approval rejects", async () => {
+    walletConnectMocks.setApproval(() => Promise.reject(new Error("Proposal expired")));
+    const execution = createWalletExecution(createConfig());
+
+    await execution.walletConnect.createSession({ blockchain: "ethereum" });
+
+    await expect(execution.walletConnect.getSession({ waitMs: 1 })).resolves.toMatchObject({
+      available: true,
+      connected: false,
+      reason: "Proposal expired",
+      status: "disconnected"
+    });
   });
 });
