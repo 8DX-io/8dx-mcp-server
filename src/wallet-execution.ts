@@ -1,4 +1,4 @@
-import SignClient from "@walletconnect/sign-client";
+import { SignClient } from "@walletconnect/sign-client";
 import { createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { arbitrum, bsc, mainnet } from "viem/chains";
@@ -40,6 +40,8 @@ const CHAIN_IDS: Record<Blockchain, number> = {
   bsc: 56,
   ethereum: 1
 };
+const WALLETCONNECT_UNAVAILABLE_REASON =
+  "WalletConnect is unavailable in this MCP host. The packaged 8DX MCP server enables it by default; EIGHTDX_WALLETCONNECT_PROJECT_ID is only needed to override the default project.";
 
 export function createWalletExecution(config: EightDxConfig): WalletExecution {
   return {
@@ -63,14 +65,14 @@ export function createDisabledWalletExecution(): WalletExecution {
     walletConnect: {
       createSession: async () => ({
         available: false,
-        reason: "WalletConnect disabled. Set EIGHTDX_WALLETCONNECT_PROJECT_ID to enable it.",
+        reason: WALLETCONNECT_UNAVAILABLE_REASON,
         status: "unavailable"
       }),
       disconnect: async () => ({ connected: false, status: "disconnected" }),
       getSession: async () => ({
         available: false,
         connected: false,
-        reason: "WalletConnect disabled. Set EIGHTDX_WALLETCONNECT_PROJECT_ID to enable it.",
+        reason: WALLETCONNECT_UNAVAILABLE_REASON,
         status: "unavailable"
       }),
       sendTransaction: async () => {

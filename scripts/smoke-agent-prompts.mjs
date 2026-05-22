@@ -36,6 +36,7 @@ try {
 
   for (const requiredFragment of [
     "WalletConnect-first",
+    "enabled by default",
     "eightdx_get_wallet_session",
     "eightdx_walletconnect_get_session",
     "eightdx_walletconnect_create_session",
@@ -69,8 +70,12 @@ try {
     "eightdx_walletconnect_get_session"
   );
 
-  if (walletConnectSession.available !== false || walletConnectSession.status !== "unavailable") {
-    throw new Error("WalletConnect should be unavailable until a project ID is configured.");
+  if (
+    walletConnectSession.available !== true ||
+    walletConnectSession.connected !== false ||
+    walletConnectSession.status !== "disconnected"
+  ) {
+    throw new Error("WalletConnect should be available by default and start disconnected.");
   }
 
   const localSignerStatus = parseToolJson(
@@ -182,6 +187,7 @@ try {
         scenario: "обменяй мне 1 биткоин по рынку",
         agentInstructionChecks: {
           walletConnectFirst: true,
+          walletConnectAvailableByDefault: true,
           checksWalletConnectSession: true,
           instructsConnectedWalletSelfSwap: true,
           resolvesTokens: true,

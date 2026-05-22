@@ -330,6 +330,7 @@ describe("8DX MCP server integration", () => {
         "eightdx_walletconnect_get_session",
         "eightdx_walletconnect_create_session",
         "WalletConnect-first",
+        "enabled by default",
         "connected WalletConnect account as the wallet session",
         "fromAddress and dstAddress to the connected wallet",
         "eightdx_search_tokens",

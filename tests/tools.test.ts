@@ -278,7 +278,7 @@ describe("createEightDxToolDefinitions", () => {
         routeUrl: "https://8dx.io/swap?blockchain=ethereum",
         walletApp: "MetaMask"
       })) as CallToolResult
-    );
+    ) as { walletConnectNote: string };
 
     expect(result).toMatchObject({
       walletApp: "MetaMask",
@@ -290,8 +290,9 @@ describe("createEightDxToolDefinitions", () => {
         expect.stringContaining("webUrl"),
         expect.stringContaining("MetaMask Mobile")
       ]),
-      walletConnectNote: expect.stringContaining("EIGHTDX_WALLETCONNECT_PROJECT_ID")
+      walletConnectNote: expect.stringContaining("enabled by default")
     });
+    expect(result.walletConnectNote).toContain("eightdx_walletconnect_create_session");
   });
 
   it("creates WalletConnect sessions and sends wallet transaction requests", async () => {

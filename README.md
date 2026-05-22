@@ -3,9 +3,9 @@
 MCP server that exposes 8DX DEX aggregator REST endpoints as tools for AI agents.
 
 The server is a thin TypeScript wrapper around the 8DX REST API plus safe AI-flow helpers.
-By default it does not hold keys, sign, custody funds, or send on-chain transactions. When
-explicitly configured, it can also create WalletConnect transaction requests or use an opt-in
-local signer after the user confirms a prepared transaction.
+By default it does not hold keys, sign, or custody funds. It can create WalletConnect
+requests so the user's own wallet signs and broadcasts after approval; the MCP-side local
+signer remains opt-in and disabled unless explicitly configured.
 
 ## Tools
 
@@ -99,8 +99,8 @@ Recommended WalletConnect-first market-swap flow for an AI client:
    a follow-up question. For example, "обменяй мне 1 биткоин по рынку" is missing
    the token the user wants to receive.
 3. Call `eightdx_get_wallet_session` and `eightdx_walletconnect_get_session`.
-4. If WalletConnect is unavailable, explain that direct wallet confirmation
-   requires `EIGHTDX_WALLETCONNECT_PROJECT_ID`. Call
+4. If WalletConnect is unavailable in the current host, explain that direct
+   wallet confirmation is unavailable there. Call
    `eightdx_preview_market_swap` to generate a fresh quote and route metadata,
    then offer `routeLink.url`, `walletLinks.webUrl`, or
    `walletLinks.metamaskMobileDappUrl` only as fallback web handoff links. Do not
@@ -159,7 +159,7 @@ npx -y @8dx/8dx-mcp-server
 | -------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------- |
 | `EIGHTDX_API_BASE_URL`                       | `https://swap.ggp.gg`              | 8DX REST API base URL.                                                        |
 | `EIGHTDX_REQUEST_TIMEOUT_MS`                 | `30000`                            | Request timeout in milliseconds.                                              |
-| `EIGHTDX_WALLETCONNECT_PROJECT_ID`           | unset                              | Enables WalletConnect session creation when set.                              |
+| `EIGHTDX_WALLETCONNECT_PROJECT_ID`           | 8DX default project                | Optional WalletConnect project override. WalletConnect works out of the box.  |
 | `EIGHTDX_WALLETCONNECT_RELAY_URL`            | unset                              | Optional WalletConnect relay override.                                        |
 | `EIGHTDX_WALLETCONNECT_METADATA_NAME`        | `8DX MCP`                          | WalletConnect app name shown in wallets.                                      |
 | `EIGHTDX_WALLETCONNECT_METADATA_DESCRIPTION` | `8DX MCP server wallet connection` | WalletConnect app description shown in wallets.                               |

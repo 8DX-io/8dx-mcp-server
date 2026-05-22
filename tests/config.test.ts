@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_API_BASE_URL, loadConfig } from "../src/config.js";
+import {
+  DEFAULT_API_BASE_URL,
+  DEFAULT_WALLETCONNECT_PROJECT_ID,
+  loadConfig
+} from "../src/config.js";
 
 describe("loadConfig", () => {
   it("uses the public 8DX production API by default", () => {
@@ -18,10 +22,11 @@ describe("loadConfig", () => {
     expect(loadConfig({ EIGHTDX_REQUEST_TIMEOUT_MS: "15000" }).requestTimeoutMs).toBe(15_000);
   });
 
-  it("keeps WalletConnect and local signing disabled by default", () => {
+  it("enables WalletConnect by default and keeps local signing disabled", () => {
     const config = loadConfig({});
 
-    expect(config.walletConnect.projectId).toBeUndefined();
+    expect(DEFAULT_WALLETCONNECT_PROJECT_ID).toBe("84b7f6d4d35af61bdd71ddf1b3cfca5f");
+    expect(config.walletConnect.projectId).toBe(DEFAULT_WALLETCONNECT_PROJECT_ID);
     expect(config.localSigner).toMatchObject({
       enabled: false,
       rpcUrls: {}

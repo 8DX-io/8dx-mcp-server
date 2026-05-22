@@ -2,6 +2,7 @@ import type { EightDxConfig } from "./types.js";
 
 export const DEFAULT_API_BASE_URL = "https://swap.ggp.gg";
 export const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+export const DEFAULT_WALLETCONNECT_PROJECT_ID = "84b7f6d4d35af61bdd71ddf1b3cfca5f";
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): EightDxConfig {
   return {
@@ -23,7 +24,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): EightDxConfig 
         name: env.EIGHTDX_WALLETCONNECT_METADATA_NAME ?? "8DX MCP",
         url: env.EIGHTDX_WALLETCONNECT_METADATA_URL ?? "https://8dx.io"
       },
-      projectId: parseNonEmptyString(env.EIGHTDX_WALLETCONNECT_PROJECT_ID),
+      projectId:
+        parseNonEmptyString(env.EIGHTDX_WALLETCONNECT_PROJECT_ID) ??
+        DEFAULT_WALLETCONNECT_PROJECT_ID,
       relayUrl: parseOptionalUrl(env.EIGHTDX_WALLETCONNECT_RELAY_URL)
     }
   };

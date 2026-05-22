@@ -819,7 +819,7 @@ function buildWalletLinks(input: { routeUrl: string; walletApp?: string | null |
     metamaskMobileDappUrl: `https://metamask.app.link/dapp/${dappTarget}`,
     walletApp: input.walletApp ?? null,
     walletConnectNote:
-      "Direct MCP wallet confirmation requires WalletConnect. Configure EIGHTDX_WALLETCONNECT_PROJECT_ID and use eightdx_walletconnect_create_session when the host can display a WalletConnect URI.",
+      "Direct MCP wallet confirmation uses WalletConnect, which is enabled by default in the packaged server. Use eightdx_walletconnect_create_session when the host can display a WalletConnect URI; use these web links only as fallback handoff links.",
     webUrl: routeUrl.toString()
   };
 }
