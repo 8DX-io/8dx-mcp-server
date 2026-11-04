@@ -259,8 +259,9 @@ describe("createEightDxToolDefinitions", () => {
       }
     });
 
-    expect((result as { presentationHints: { terminal: string } }).presentationHints.terminal).not
-      .toContain("route link");
+    expect(
+      (result as { presentationHints: { terminal: string } }).presentationHints.terminal
+    ).not.toContain("route link");
 
     const routeUrl = new URL((result as { routeLink: { url: string } }).routeLink.url);
     expect(routeUrl.origin).toBe("https://8dx.io");
