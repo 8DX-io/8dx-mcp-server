@@ -28,6 +28,7 @@ Before starting implementation, run `git status --short`. This repository curren
 ### Task 1: Lock Prompt Requirements With Tests
 
 **Files:**
+
 - Modify: `tests/mcp-integration.test.ts`
 - Modify: `scripts/smoke-agent-prompts.mjs`
 
@@ -36,20 +37,20 @@ Before starting implementation, run `git status --short`. This repository curren
 In `tests/mcp-integration.test.ts`, replace the final assertions inside `it("exposes prompt scenarios that guide natural-language trading requests", ...)` with these stricter checks:
 
 ```ts
-      expect(text).toContain("eightdx_get_wallet_session");
-      expect(text).toContain("eightdx_walletconnect_get_session");
-      expect(text).toContain("eightdx_walletconnect_create_session");
-      expect(text).toContain("WalletConnect-first");
-      expect(text).toContain("connected WalletConnect account as the wallet session");
-      expect(text).toContain("fromAddress and dstAddress to the connected wallet");
-      expect(text).toContain("eightdx_search_tokens");
-      expect(text).toContain("Ask a follow-up question");
-      expect(text).toContain("eightdx_preview_market_swap");
-      expect(text).toContain("explicit confirmation");
-      expect(text).toContain("eightdx_create_swap");
-      expect(text).toContain("eightdx_wallet_send_transaction");
-      expect(text).toContain("fallback");
-      expect(text).toContain("do not sign");
+expect(text).toContain("eightdx_get_wallet_session");
+expect(text).toContain("eightdx_walletconnect_get_session");
+expect(text).toContain("eightdx_walletconnect_create_session");
+expect(text).toContain("WalletConnect-first");
+expect(text).toContain("connected WalletConnect account as the wallet session");
+expect(text).toContain("fromAddress and dstAddress to the connected wallet");
+expect(text).toContain("eightdx_search_tokens");
+expect(text).toContain("Ask a follow-up question");
+expect(text).toContain("eightdx_preview_market_swap");
+expect(text).toContain("explicit confirmation");
+expect(text).toContain("eightdx_create_swap");
+expect(text).toContain("eightdx_wallet_send_transaction");
+expect(text).toContain("fallback");
+expect(text).toContain("do not sign");
 ```
 
 - [ ] **Step 2: Update smoke prompt checks**
@@ -97,6 +98,7 @@ git commit -m "test: require WalletConnect-first swap prompts"
 ### Task 2: Make Prompt Templates WalletConnect-First
 
 **Files:**
+
 - Modify: `src/prompts.ts`
 - Test: `tests/mcp-integration.test.ts`
 - Test: `scripts/smoke-agent-prompts.mjs`
@@ -149,7 +151,7 @@ In `src/prompts.ts`, replace the `Market swap scenario:` numbered list in `creat
 Keep the existing final line:
 
 ```ts
-    "Never skip the quote or the explicit confirmation step."
+"Never skip the quote or the explicit confirmation step.";
 ```
 
 - [ ] **Step 3: Run prompt tests**
@@ -185,6 +187,7 @@ git commit -m "feat: make swap prompts WalletConnect-first"
 ### Task 3: Lock Tool Output Guidance With Tests
 
 **Files:**
+
 - Modify: `tests/tools.test.ts`
 
 - [ ] **Step 1: Add preview next-action assertions**
@@ -241,6 +244,7 @@ git commit -m "test: require WalletConnect-first tool guidance"
 ### Task 4: Update Preview and Fallback Link Guidance
 
 **Files:**
+
 - Modify: `src/tools.ts`
 - Test: `tests/tools.test.ts`
 
@@ -304,6 +308,7 @@ git commit -m "feat: guide swaps through WalletConnect execution"
 ### Task 5: Update README Flow and Smoke Scenario
 
 **Files:**
+
 - Modify: `README.md`
 - Modify: `scripts/smoke-agent-prompts.mjs`
 
@@ -391,6 +396,7 @@ git commit -m "docs: document WalletConnect-first swap flow"
 ### Task 6: Full Verification
 
 **Files:**
+
 - No new source files.
 
 - [ ] **Step 1: Run full automated checks**
