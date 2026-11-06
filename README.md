@@ -188,7 +188,7 @@ npx -y @8dx/8dx-mcp-server
 All outgoing 8DX REST API requests include:
 
 ```http
-X-Source: 8dx-mcp/0.1.0
+X-Source: 8dx-mcp/0.1.3
 ```
 
 This lets the 8DX backend distinguish MCP traffic from direct API usage.
