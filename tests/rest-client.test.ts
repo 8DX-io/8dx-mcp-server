@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { EightDxApiError, EightDxRestClient } from "../src/rest-client.js";
+import { SOURCE_HEADER_VALUE } from "../src/version.js";
 
 function createJsonResponse(data: unknown, init?: ResponseInit): Response {
   return new Response(JSON.stringify(data), {
@@ -77,7 +78,7 @@ describe("EightDxRestClient", () => {
     await client.getHealth();
 
     expect(calls[0]?.init?.headers).toMatchObject({
-      "X-Source": "8dx-mcp/0.1.0"
+      "X-Source": SOURCE_HEADER_VALUE
     });
   });
 
