@@ -364,9 +364,7 @@ function buildMetaMaskWalletConnectLink(uri: string): string {
   return `https://metamask.app.link/wc?uri=${encodeURIComponent(uri)}`;
 }
 
-function buildWalletConnectConnectionOptions(input: {
-  uri: string | null;
-}): {
+function buildWalletConnectConnectionOptions(input: { uri: string | null }): {
   options: Array<{
     description: string;
     id: string;
