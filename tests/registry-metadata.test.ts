@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { DEFAULT_API_BASE_URL, DEFAULT_REQUEST_TIMEOUT_MS } from "../src/config.js";
+import { PACKAGE_VERSION, SOURCE_HEADER_VALUE } from "../src/version.js";
 
 const readJson = (name: string) =>
   JSON.parse(readFileSync(new URL(`../${name}`, import.meta.url), "utf8"));
@@ -12,6 +13,8 @@ describe("MCP Registry metadata", () => {
     const pkg = readJson("package.json");
     const lock = readJson("package-lock.json");
     const server = readJson("server.json");
+    expect(PACKAGE_VERSION).toBe(pkg.version);
+    expect(SOURCE_HEADER_VALUE).toBe(`8dx-mcp/${pkg.version}`);
     expect(server.name).toBe("io.github.8DX-io/8dx-mcp-server");
     expect(pkg.mcpName).toBe(server.name);
     expect(server.version).toBe(pkg.version);
